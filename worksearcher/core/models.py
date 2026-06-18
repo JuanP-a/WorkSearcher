@@ -2,7 +2,7 @@ from enum import StrEnum
 from hashlib import sha256
 from datetime import datetime
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, computed_field
 
 
 class JobSource(StrEnum):
@@ -22,10 +22,9 @@ class Job(BaseModel):
     is_remote: bool
     description: str = ""
     posted_at: datetime | None = None
-    fingerprint: str = ""
 
-    @model_validator(mode="after")
-    def compute_fingerprint(self) -> "Job":
+    @computed_field
+    @property
+    def fingerprint(self) -> str:
         raw = f"{self.title}{self.company}{self.url}".lower()
-        self.fingerprint = sha256(raw.encode()).hexdigest()
-        return self
+        return sha256(raw.encode()).hexdigest()

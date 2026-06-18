@@ -54,3 +54,25 @@ def test_job_source_enum_values():
     assert JobSource.GLASSDOOR == "glassdoor"
     assert JobSource.REMOTEOK == "remoteok"
     assert JobSource.REMOTIVE == "remotive"
+
+
+def test_fingerprint_is_derived_not_stored():
+    job1 = Job(
+        title="Python Developer",
+        company="Acme Corp",
+        location="Remote",
+        url="https://example.com/job/1",
+        source=JobSource.REMOTEOK,
+        is_remote=True,
+    )
+    job2 = Job(
+        title="Python Developer",
+        company="Acme Corp",
+        location="Remote",
+        url="https://example.com/job/1",
+        source=JobSource.REMOTEOK,
+        is_remote=True,
+    )
+    # Both compute the same fingerprint deterministically
+    assert job1.fingerprint == job2.fingerprint
+    assert len(job1.fingerprint) == 64
