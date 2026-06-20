@@ -37,7 +37,11 @@ async def send_digest(jobs: list[Job], config: Settings) -> None:
     }
 
     async with httpx.AsyncClient(timeout=15) as client:
-        response = await client.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-
-    logger.info("WhatsApp digest sent: %d jobs", len(jobs))
+        try:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            logger.info("WhatsApp digest sent: %d jobs", len(jobs))
+        except httpx.HTTPStatusError as e:
+            logger.error("WhatsApp API error %s: %s", e.response.status_code, e.response.text)
+        except httpx.RequestError as e:
+            logger.error("WhatsApp request failed: %s", e)
