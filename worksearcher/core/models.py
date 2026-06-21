@@ -11,6 +11,10 @@ class JobSource(StrEnum):
     GLASSDOOR = "glassdoor"
     REMOTEOK = "remoteok"
     REMOTIVE = "remotive"
+    WWR = "weworkremotely"
+    CYBERSECJOBS = "cybersecjobs"
+    COMPUTRABAJO = "computrabajo"
+    BUMERAN = "bumeran"
 
 
 class Job(BaseModel):

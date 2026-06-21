@@ -9,7 +9,15 @@ from worksearcher.core.deduplicator import deduplicate
 from worksearcher.core.filters import filter_jobs
 from worksearcher.core.models import Job
 from worksearcher.notifier.whatsapp import send_digest
-from worksearcher.scrapers import jobspy_scraper, remoteok_scraper, remotive_scraper
+from worksearcher.scrapers import (
+    jobspy_scraper,
+    remoteok_scraper,
+    remotive_scraper,
+    wwr_scraper,
+    cybersecjobs_scraper,
+    computrabajo_scraper,
+    bumeran_scraper,
+)
 from worksearcher.storage.database import get_connection, get_seen_fingerprints, init_db, save_jobs
 
 logging.basicConfig(
@@ -22,6 +30,10 @@ _SCRAPERS: list[Callable[[Settings], Coroutine[None, None, list[Job]]]] = [
     jobspy_scraper.scrape,
     remoteok_scraper.scrape,
     remotive_scraper.scrape,
+    wwr_scraper.scrape,
+    cybersecjobs_scraper.scrape,
+    computrabajo_scraper.scrape,
+    bumeran_scraper.scrape,
 ]
 
 
