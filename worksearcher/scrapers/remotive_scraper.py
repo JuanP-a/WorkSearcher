@@ -30,7 +30,8 @@ async def scrape(config: Settings) -> list[Job]:
                     description=item.get("description", ""),
                 )
                 jobs.append(job)
-            except Exception:
+            except Exception as exc:
+                logger.warning("Remotive: skipping malformed job %s: %s", item.get("id", "?"), exc)
                 continue
 
         logger.info("Remotive: %d jobs found", len(jobs))

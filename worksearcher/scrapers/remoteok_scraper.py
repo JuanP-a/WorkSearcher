@@ -34,7 +34,8 @@ async def scrape(config: Settings) -> list[Job]:
                     description=item.get("description", ""),
                 )
                 jobs.append(job)
-            except Exception:
+            except Exception as exc:
+                logger.warning("RemoteOK: skipping malformed job %s: %s", item.get("slug", "?"), exc)
                 continue
 
         logger.info("RemoteOK: %d jobs found", len(jobs))

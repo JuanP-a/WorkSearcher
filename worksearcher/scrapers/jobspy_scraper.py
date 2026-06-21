@@ -18,9 +18,13 @@ async def scrape(config: Settings) -> list[Job]:
         from jobspy import scrape_jobs  # import here — jobspy is slow to import
 
         def _blocking_scrape() -> list[Job]:
+            keywords = config.keywords_list
+            if len(keywords) > 5:
+                logger.warning("jobspy: keyword list truncated from %d to 5", len(keywords))
+                keywords = keywords[:5]
             results = scrape_jobs(
                 site_name=["linkedin", "indeed", "glassdoor"],
-                search_term=" OR ".join(config.keywords_list[:5]),
+                search_term=" OR ".join(keywords),
                 location="Remote",
                 results_wanted=50,
                 hours_old=24,
@@ -40,7 +44,8 @@ async def scrape(config: Settings) -> list[Job]:
                         description=str(row.get("description", "") or ""),
                     )
                     jobs.append(job)
-                except Exception:
+                except Exception as exc:
+                    logger.warning("jobspy: skipping malformed row: %s", exc)
                     continue
             return jobs
 
