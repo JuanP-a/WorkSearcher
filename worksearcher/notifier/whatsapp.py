@@ -6,7 +6,7 @@ from worksearcher.core.models import Job
 
 logger = logging.getLogger(__name__)
 
-_META_API_URL = "https://graph.facebook.com/v18.0/{phone_id}/messages"
+_META_API_URL = "https://graph.facebook.com/v21.0/{phone_id}/messages"
 _MAX_JOBS_PER_MESSAGE = 10
 
 
@@ -20,9 +20,9 @@ def _build_message(jobs: list[Job]) -> str:
     return "\n".join(lines)
 
 
-async def send_digest(jobs: list[Job], config: Settings) -> None:
+async def send_digest(jobs: list[Job], config: Settings) -> bool:
     if not jobs:
-        return
+        return False
 
     url = _META_API_URL.format(phone_id=config.META_PHONE_NUMBER_ID)
     headers = {
@@ -36,12 +36,16 @@ async def send_digest(jobs: list[Job], config: Settings) -> None:
         "text": {"body": _build_message(jobs)},
     }
 
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
         try:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             logger.info("WhatsApp digest sent: %d jobs", len(jobs))
+            return True
         except httpx.HTTPStatusError as e:
-            logger.error("WhatsApp API error %s: %s", e.response.status_code, e.response.text)
+            error_code = e.response.json().get("error", {}).get("code") if e.response.content else None
+            logger.error("WhatsApp API error %s (code=%s)", e.response.status_code, error_code)
+            return False
         except httpx.RequestError as e:
             logger.error("WhatsApp request failed: %s", e)
+            return False

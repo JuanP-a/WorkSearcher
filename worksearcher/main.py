@@ -25,8 +25,7 @@ _SCRAPERS: list[Callable[[Settings], Coroutine[None, None, list[Job]]]] = [
 ]
 
 
-async def _run_pipeline() -> None:
-    config = Settings()
+async def _run_pipeline(config: Settings) -> None:
     logger.info("Pipeline started")
 
     # Scrape all platforms concurrently
@@ -57,7 +56,9 @@ async def _run_pipeline() -> None:
         if new_jobs:
             inserted = save_jobs(new_jobs, conn)
             logger.info("Inserted %d jobs into DB", inserted)
-            await send_digest(new_jobs, config)
+            sent = await send_digest(new_jobs, config)
+            if not sent:
+                logger.warning("Notification failed — jobs saved in DB but WhatsApp not delivered")
         else:
             logger.info("No new jobs — skipping notification")
     finally:
@@ -74,7 +75,8 @@ def cli() -> None:
 @cli.command()
 def run() -> None:
     """Run the full job search pipeline."""
-    asyncio.run(_run_pipeline())
+    config = Settings()
+    asyncio.run(_run_pipeline(config))
 
 
 if __name__ == "__main__":
