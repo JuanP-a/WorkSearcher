@@ -1,5 +1,10 @@
 from worksearcher.core.models import Job, JobSource
-from worksearcher.core.filters import is_relevant, filter_jobs
+from worksearcher.core.filters import (
+    is_relevant,
+    filter_jobs,
+    extract_min_years_required,
+    meets_experience_requirement,
+)
 
 KEYWORDS = ["python", "backend", "cybersecurity", "security engineer", "soc", "pentester"]
 
@@ -15,6 +20,8 @@ def _job(title: str, description: str = "", is_remote: bool = True) -> Job:
         description=description,
     )
 
+
+# --- is_relevant ---
 
 def test_relevant_by_title_keyword():
     assert is_relevant(_job("Python Developer"), KEYWORDS) is True
@@ -53,3 +60,110 @@ def test_filter_jobs_returns_only_relevant():
 
 def test_filter_jobs_empty_list():
     assert filter_jobs([], KEYWORDS) == []
+
+
+# --- extract_min_years_required ---
+
+def test_no_experience_mention_returns_none():
+    assert extract_min_years_required("Great company, exciting role") is None
+
+
+def test_empty_text_returns_none():
+    assert extract_min_years_required("") is None
+
+
+def test_exact_years_english():
+    assert extract_min_years_required("Requires 5 years of experience") == 5
+
+
+def test_plus_years():
+    assert extract_min_years_required("5+ years required") == 5
+
+
+def test_range_returns_minimum():
+    assert extract_min_years_required("3-5 years of experience") == 3
+
+
+def test_range_with_dash_em():
+    assert extract_min_years_required("2–4 years experience") == 2
+
+
+def test_entry_level_returns_zero():
+    assert extract_min_years_required("Entry level position, no experience required") == 0
+
+
+def test_junior_returns_zero():
+    assert extract_min_years_required("Junior backend developer") == 0
+
+
+def test_spanish_years():
+    assert extract_min_years_required("5 años de experiencia requerida") == 5
+
+
+def test_spanish_entry_level():
+    assert extract_min_years_required("Recién egresado, sin experiencia") == 0
+
+
+def test_one_year():
+    assert extract_min_years_required("1 year of experience preferred") == 1
+
+
+# --- meets_experience_requirement ---
+
+def test_no_mention_passes():
+    job = _job("Backend Dev", description="Exciting startup")
+    assert meets_experience_requirement(job, max_years=3) is True
+
+
+def test_within_limit_passes():
+    job = _job("Backend Dev", description="2 years of experience required")
+    assert meets_experience_requirement(job, max_years=3) is True
+
+
+def test_at_limit_passes():
+    job = _job("Backend Dev", description="3 years of experience required")
+    assert meets_experience_requirement(job, max_years=3) is True
+
+
+def test_over_limit_fails():
+    job = _job("Senior Dev", description="5+ years of experience")
+    assert meets_experience_requirement(job, max_years=3) is False
+
+
+def test_entry_level_passes():
+    job = _job("Junior Python Dev", description="Entry level, no experience required")
+    assert meets_experience_requirement(job, max_years=3) is True
+
+
+def test_range_min_within_limit_passes():
+    job = _job("Dev", description="2-5 years of experience")
+    assert meets_experience_requirement(job, max_years=3) is True
+
+
+def test_experience_in_title_detected():
+    job = _job("Senior Dev 7 years exp", description="")
+    assert meets_experience_requirement(job, max_years=3) is False
+
+
+# --- filter_jobs with experience cap ---
+
+def test_filter_jobs_applies_experience_cap():
+    jobs = [
+        _job("Python Dev", description="2 years experience"),
+        _job("Python Dev Senior", description="7+ years experience"),
+        _job("Backend Dev", description="No experience mentioned"),
+    ]
+    result = filter_jobs(jobs, KEYWORDS, max_years_experience=3)
+    titles = {j.title for j in result}
+    assert "Python Dev" in titles
+    assert "Backend Dev" in titles
+    assert "Python Dev Senior" not in titles
+
+
+def test_filter_jobs_no_experience_cap_keeps_all_relevant():
+    jobs = [
+        _job("Python Dev", description="10 years experience"),
+        _job("Backend Dev", description="junior"),
+    ]
+    result = filter_jobs(jobs, KEYWORDS, max_years_experience=None)
+    assert len(result) == 2

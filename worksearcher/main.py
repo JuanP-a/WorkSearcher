@@ -41,9 +41,9 @@ async def _run_pipeline(config: Settings) -> None:
             all_jobs.extend(result)
     logger.info("Scraped: %d total jobs", len(all_jobs))
 
-    # Filter by keywords + remote
-    relevant = filter_jobs(all_jobs, config.keywords_list)
-    logger.info("Relevant: %d jobs after keyword filter", len(relevant))
+    # Filter by keywords + remote + experience cap
+    relevant = filter_jobs(all_jobs, config.keywords_list, config.MAX_YEARS_EXPERIENCE)
+    logger.info("Relevant: %d jobs after filters (keywords + experience ≤%dy)", len(relevant), config.MAX_YEARS_EXPERIENCE)
 
     # Dedup + persist + notify
     conn = get_connection()
