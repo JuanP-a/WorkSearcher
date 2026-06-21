@@ -7,18 +7,13 @@ from worksearcher.core.models import Job, JobSource
 
 logger = logging.getLogger(__name__)
 
-_BASE_URL = "https://www.computrabajo.com.mx"
-
-# Selectors tried in order — update if site changes structure
-_ARTICLE_SELECTORS = "article.box_offer, article[data-code], article.offerBlock"
-_TITLE_SELECTORS = "h2 a, a.js-o-link, [title]"
-_COMPANY_SELECTORS = ".qt_location .fc_blue, .name_company, .company"
+_BASE_URL = "https://mx.computrabajo.com"
 
 
 def _slug(keyword: str) -> str:
     slug = keyword.lower().strip()
     slug = re.sub(r"[^\w\s-]", "", slug)
-    return re.sub(r"[\s]+", "-", slug)
+    return re.sub(r"\s+", "-", slug)
 
 
 def _blocking_scrape(config: Settings) -> list[Job]:
@@ -28,12 +23,23 @@ def _blocking_scrape(config: Settings) -> list[Job]:
     seen_urls: set[str] = set()
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.set_extra_http_headers({
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-                          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        })
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
+        )
+        context = browser.new_context(
+            user_agent=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            ),
+            viewport={"width": 1280, "height": 800},
+            locale="es-MX",
+        )
+        # Hide webdriver fingerprint
+        context.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+        )
+        page = context.new_page()
 
         for keyword in config.keywords_list[:5]:
             try:
@@ -41,17 +47,23 @@ def _blocking_scrape(config: Settings) -> list[Job]:
                 logger.debug("Computrabajo: fetching %s", url)
                 page.goto(url, wait_until="domcontentloaded", timeout=30_000)
 
+                if "403" in page.title() or "Forbidden" in page.title():
+                    logger.warning("Computrabajo: 403 received — skipping remaining keywords")
+                    break
+
                 try:
-                    page.wait_for_selector(_ARTICLE_SELECTORS, timeout=10_000)
+                    page.wait_for_selector("article.box_offer", timeout=10_000)
                 except PWTimeout:
                     logger.warning("Computrabajo: no job cards loaded for '%s'", keyword)
                     continue
 
-                for article in page.query_selector_all(_ARTICLE_SELECTORS):
+                for article in page.query_selector_all("article.box_offer"):
                     try:
-                        title_el = article.query_selector(_TITLE_SELECTORS)
-                        company_el = article.query_selector(_COMPANY_SELECTORS)
-                        link_el = article.query_selector("a[href]")
+                        # Title is the <a> inside <h2> — avoids "Vista" tag text
+                        title_el = article.query_selector("h2 a")
+                        # Company is the first <a> inside the first <p class="dFlex">
+                        company_el = article.query_selector("p.dFlex a")
+                        link_el = article.query_selector("h2 a")
 
                         title = title_el.inner_text().strip() if title_el else ""
                         company = company_el.inner_text().strip() if company_el else ""

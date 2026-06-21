@@ -9,106 +9,90 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://www.bumeran.com.mx"
 
+# Bumeran MX mostly uses Spanish job titles — these seeds give broad coverage
+# Our main pipeline's keyword filter handles relevance after scraping
+_SEARCH_TERMS = [
+    "desarrollador",
+    "programador",
+    "backend",
+    "ciberseguridad",
+    "seguridad informatica",
+]
+
 
 def _slug(keyword: str) -> str:
     slug = keyword.lower().strip()
     slug = re.sub(r"[^\w\s-]", "", slug)
-    return re.sub(r"[\s]+", "-", slug)
-
-
-def _extract_jobs_from_next_data(data: dict) -> list[dict]:
-    """Navigate __NEXT_DATA__ to find job listings — Bumeran uses Next.js."""
-    props = data.get("props", {}).get("pageProps", {})
-    for key in ("postings", "jobs", "avisos", "results", "data"):
-        items = props.get(key)
-        if items and isinstance(items, list):
-            return items
-    # Sometimes nested deeper
-    for value in props.values():
-        if isinstance(value, dict):
-            for key in ("postings", "jobs", "avisos"):
-                items = value.get(key)
-                if items and isinstance(items, list):
-                    return items
-    return []
+    return re.sub(r"\s+", "-", slug)
 
 
 def _blocking_scrape(config: Settings) -> list[Job]:
-    from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+    from playwright.sync_api import sync_playwright
 
     jobs: list[Job] = []
     seen_urls: set[str] = set()
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.set_extra_http_headers({
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-                          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        })
+        context = browser.new_context(
+            user_agent=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            ),
+            viewport={"width": 1280, "height": 800},
+        )
+        context.add_init_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+        )
+        page = context.new_page()
 
-        for keyword in config.keywords_list[:5]:
+        for term in _SEARCH_TERMS:
             try:
-                url = f"{_BASE_URL}/empleos-busqueda-{_slug(keyword)}.html"
+                url = f"{_BASE_URL}/empleos-busqueda-{_slug(term)}.html"
                 logger.debug("Bumeran: fetching %s", url)
-                page.goto(url, wait_until="networkidle", timeout=30_000)
+                page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                page.wait_for_timeout(3_000)
 
-                # Try __NEXT_DATA__ JSON extraction (most reliable for Next.js apps)
-                try:
-                    next_data = page.evaluate(
-                        "JSON.parse(document.getElementById('__NEXT_DATA__').textContent)"
-                    )
-                    postings = _extract_jobs_from_next_data(next_data)
+                # Each job is an <a href="/empleos/..."> containing title + company in text
+                job_links = page.query_selector_all("a[href*='/empleos/']")
+                if not job_links:
+                    logger.warning("Bumeran: no job links found for '%s'", term)
+                    continue
 
-                    if not postings:
-                        logger.warning("Bumeran: __NEXT_DATA__ found but no postings key for '%s'", keyword)
-
-                    for posting in postings:
-                        try:
-                            title = (
-                                posting.get("title") or
-                                posting.get("titulo") or
-                                posting.get("nombre", "")
-                            )
-                            company_raw = posting.get("company") or posting.get("empresa") or {}
-                            company = (
-                                company_raw.get("name") or company_raw.get("nombre", "")
-                                if isinstance(company_raw, dict)
-                                else str(company_raw)
-                            )
-                            url_path = (
-                                posting.get("url") or
-                                posting.get("slug") or
-                                posting.get("link", "")
-                            )
-                            job_url = (
-                                f"{_BASE_URL}{url_path}" if url_path.startswith("/")
-                                else url_path
-                            )
-                            description = posting.get("description") or posting.get("descripcion", "")
-
-                            if not title or not job_url or job_url in seen_urls:
-                                continue
-                            seen_urls.add(job_url)
-
-                            jobs.append(Job(
-                                title=title,
-                                company=company,
-                                location="Remote",
-                                url=job_url,
-                                source=JobSource.BUMERAN,
-                                is_remote=True,
-                                description=description,
-                            ))
-                        except Exception as exc:
-                            logger.warning("Bumeran: skipping malformed posting: %s", exc)
+                for link in job_links:
+                    try:
+                        href = link.get_attribute("href") or ""
+                        if not href or href in seen_urls:
                             continue
 
-                except Exception as exc:
-                    logger.warning("Bumeran: __NEXT_DATA__ extraction failed for '%s': %s", keyword, exc)
+                        job_url = href if href.startswith("http") else f"{_BASE_URL}{href}"
+                        seen_urls.add(href)
+
+                        # Text lines: ["Publicado hace X días", "Job Title", "Company", "Location"]
+                        raw = link.inner_text().strip()
+                        lines = [l.strip() for l in raw.split("\n") if l.strip()]
+
+                        title = next((l for l in lines if len(l) > 5 and not l.startswith("Publicado")), "")
+                        company_idx = lines.index(title) + 1 if title in lines else -1
+                        company = lines[company_idx] if 0 < company_idx < len(lines) else ""
+
+                        if not title:
+                            continue
+
+                        jobs.append(Job(
+                            title=title,
+                            company=company,
+                            location="Remote",
+                            url=job_url,
+                            source=JobSource.BUMERAN,
+                            is_remote=True,
+                        ))
+                    except Exception as exc:
+                        logger.warning("Bumeran: skipping malformed link: %s", exc)
+                        continue
 
             except Exception as exc:
-                logger.warning("Bumeran: keyword '%s' failed: %s", keyword, exc)
+                logger.warning("Bumeran: term '%s' failed: %s", term, exc)
                 continue
 
         browser.close()
