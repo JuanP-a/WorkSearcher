@@ -6,7 +6,8 @@ from worksearcher.core.models import Job
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path("worksearcher.db")
+# Absolute path derived from module location — safe regardless of cwd (cron, etc.)
+DB_PATH = Path(__file__).resolve().parent.parent.parent / "worksearcher.db"
 
 
 def get_connection(path: Path = DB_PATH) -> sqlite3.Connection:

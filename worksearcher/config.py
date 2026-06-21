@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     META_RECIPIENT_PHONE: str
     SEARCH_KEYWORDS: str = "python,backend,cybersecurity,security engineer,SOC,pentester,infosec"
     SCRAPE_INTERVAL_HOURS: int = 4
+    MAX_YEARS_EXPERIENCE: int = 3
 
     @property
     def keywords_list(self) -> list[str]:
