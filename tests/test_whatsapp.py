@@ -1,0 +1,110 @@
+import pytest
+import httpx
+import respx
+
+from worksearcher.core.models import Job, JobSource
+from worksearcher.notifier.whatsapp import _build_message, send_digest, _MAX_JOBS_PER_MESSAGE
+
+
+def _job(n: int, source: JobSource = JobSource.REMOTEOK) -> Job:
+    return Job(
+        title=f"Job {n}",
+        company=f"Company {n}",
+        location="Remote",
+        url=f"https://example.com/job/{n}",
+        source=source,
+        is_remote=True,
+    )
+
+
+class FakeSettings:
+    META_PHONE_NUMBER_ID = "123456789"
+    META_ACCESS_TOKEN = "fake_token"
+    META_RECIPIENT_PHONE = "521234567890"
+
+
+# --- _build_message ---
+
+def test_build_message_header():
+    msg = _build_message([_job(1)])
+    assert "*WorkSearcher — nuevas ofertas:*" in msg
+
+
+def test_build_message_includes_title_and_company():
+    msg = _build_message([_job(1)])
+    assert "Job 1" in msg
+    assert "Company 1" in msg
+
+
+def test_build_message_includes_url():
+    msg = _build_message([_job(1)])
+    assert "https://example.com/job/1" in msg
+
+
+def test_build_message_exact_limit_no_overflow_line():
+    jobs = [_job(i) for i in range(_MAX_JOBS_PER_MESSAGE)]
+    msg = _build_message(jobs)
+    assert "más guardadas" not in msg
+
+
+def test_build_message_overflow_shows_count():
+    jobs = [_job(i) for i in range(_MAX_JOBS_PER_MESSAGE + 5)]
+    msg = _build_message(jobs)
+    assert "5 más guardadas en DB" in msg
+
+
+def test_build_message_truncates_at_max():
+    jobs = [_job(i) for i in range(20)]
+    msg = _build_message(jobs)
+    # Only first MAX_JOBS_PER_MESSAGE titles should appear
+    assert f"Job {_MAX_JOBS_PER_MESSAGE - 1}" in msg
+    assert f"Job {_MAX_JOBS_PER_MESSAGE}" not in msg
+
+
+def test_build_message_single_job():
+    msg = _build_message([_job(1)])
+    assert msg.count("•") == 1
+
+
+def test_build_message_empty_list():
+    msg = _build_message([])
+    assert "*WorkSearcher — nuevas ofertas:*" in msg
+    assert "•" not in msg
+
+
+# --- send_digest ---
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_send_digest_returns_true_on_success():
+    respx.post("https://graph.facebook.com/v21.0/123456789/messages").mock(
+        return_value=httpx.Response(200, json={"messages": [{"id": "wamid.abc"}]})
+    )
+    result = await send_digest([_job(1)], FakeSettings())
+    assert result is True
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_send_digest_returns_false_on_401():
+    respx.post("https://graph.facebook.com/v21.0/123456789/messages").mock(
+        return_value=httpx.Response(401, json={"error": {"code": 190, "message": "Invalid token"}})
+    )
+    result = await send_digest([_job(1)], FakeSettings())
+    assert result is False
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_send_digest_returns_false_on_network_error():
+    respx.post("https://graph.facebook.com/v21.0/123456789/messages").mock(
+        side_effect=httpx.ConnectError("Network unreachable")
+    )
+    result = await send_digest([_job(1)], FakeSettings())
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_send_digest_returns_false_for_empty_list():
+    result = await send_digest([], FakeSettings())
+    assert result is False
