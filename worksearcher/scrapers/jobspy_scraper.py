@@ -18,13 +18,9 @@ async def scrape(config: Settings) -> list[Job]:
         from jobspy import scrape_jobs  # import here — jobspy is slow to import
 
         def _blocking_scrape() -> list[Job]:
-            keywords = config.keywords_list
-            if len(keywords) > 5:
-                logger.warning("jobspy: keyword list truncated from %d to 5", len(keywords))
-                keywords = keywords[:5]
             results = scrape_jobs(
                 site_name=["linkedin", "indeed", "glassdoor"],
-                search_term=" OR ".join(keywords),
+                search_term=" OR ".join(config.jobspy_terms_list),
                 location="Remote",
                 results_wanted=50,
                 hours_old=24,
