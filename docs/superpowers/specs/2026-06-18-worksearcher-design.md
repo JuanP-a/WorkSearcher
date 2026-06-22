@@ -99,7 +99,9 @@ class Job(BaseModel):
 ## Deployment
 
 ```
-VPS: Hetzner CX11
+VPS: Vultr Mexico City — Regular Cloud Compute $12/mes (1 vCPU, 2GB RAM, 55GB SSD)
 OS: Ubuntu 22.04
-Crontab: 0 */4 * * * cd /app && python -m worksearcher run >> /var/log/worksearcher.log 2>&1
+Crontab: 0 */4 * * * cd /app && uv run python -m worksearcher run >> /var/log/worksearcher.log 2>&1
 ```
+
+> Vultr Mexico City elegido sobre Hetzner por latencia reducida a plataformas LatAm (Computrabajo, Bumeran) y por IP latinoamericana que reduce riesgo de bloqueo geo en esas plataformas.
