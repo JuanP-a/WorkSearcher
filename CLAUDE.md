@@ -29,9 +29,16 @@ Buscador de empleos automatizado para un ingeniero en sistemas (dev + cibersegur
 | We Work Remotely | httpx + BS4 | Global remoto |
 
 ## Keywords de búsqueda (intereses del usuario)
-- **Desarrollo**: python, backend, fullstack, software engineer, developer, node.js
-- **Ciberseguridad**: cybersecurity, security engineer, SOC analyst, pentester, infosec, ethical hacker
-- **Siempre**: remote (todos los resultados deben ser remotos)
+
+Dos campos separados — ver `worksearcher/config.py` y `.env.example`:
+
+- **`SEARCH_KEYWORDS`** (filtro post-scraping, todos los scrapers, sin límite):
+  - Desarrollo: python, javascript, typescript, react, node.js, frontend, backend, fullstack, software engineer, developer, web developer
+  - Ciberseguridad: cybersecurity, security engineer, SOC analyst, pentester, infosec, ethical hacker, red team, blue team, cloud security
+  - Automatización: devops, automation, SRE
+- **`JOBSPY_SEARCH_TERMS`** (query a LinkedIn/Indeed/Glassdoor, máx 5 términos):
+  - Default: python, cybersecurity, software engineer, devops, javascript
+- **Siempre**: remote (todos los resultados deben ser remotos — enforced en `filters.py`)
 
 ## Convenciones
 - snake_case para variables y funciones, PascalCase para clases
