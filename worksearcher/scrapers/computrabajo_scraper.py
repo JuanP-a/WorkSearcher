@@ -42,9 +42,11 @@ def _blocking_scrape(config: Settings) -> list[Job]:
         context.add_init_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
         )
-        page = context.new_page()
 
         for keyword in config.keywords_list[:5]:
+            # Fresh page per keyword so a CAPTCHA or 403 on one keyword doesn't
+            # corrupt the browser state for the rest of the run
+            page = context.new_page()
             try:
                 url = f"{_BASE_URL}/trabajo-de-{_slug(keyword)}"
                 logger.debug("Computrabajo: fetching %s", url)
@@ -52,12 +54,14 @@ def _blocking_scrape(config: Settings) -> list[Job]:
 
                 if "403" in page.title() or "Forbidden" in page.title():
                     logger.warning("Computrabajo: 403 received — skipping remaining keywords")
+                    page.close()
                     break
 
                 try:
                     page.wait_for_selector("article.box_offer", timeout=10_000)
                 except PWTimeout:
                     logger.warning("Computrabajo: no job cards loaded for '%s'", keyword)
+                    page.close()
                     continue
 
                 for article in page.query_selector_all("article.box_offer"):
@@ -98,7 +102,8 @@ def _blocking_scrape(config: Settings) -> list[Job]:
 
             except Exception as exc:
                 logger.warning("Computrabajo: keyword '%s' failed: %s", keyword, exc)
-                continue
+            finally:
+                page.close()
 
         browser.close()
 
