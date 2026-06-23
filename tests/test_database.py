@@ -37,12 +37,25 @@ def test_duplicate_job_not_reinserted(conn):
 def test_get_seen_fingerprints_returns_saved(conn):
     job = _job("https://example.com/1")
     save_jobs([job], conn)
-    seen = get_seen_fingerprints(conn)
+    seen = get_seen_fingerprints([job.fingerprint], conn)
     assert job.fingerprint in seen
 
 
-def test_get_seen_fingerprints_empty_db(conn):
-    assert get_seen_fingerprints(conn) == set()
+def test_get_seen_fingerprints_empty_candidates(conn):
+    assert get_seen_fingerprints([], conn) == set()
+
+
+def test_get_seen_fingerprints_unknown_fingerprint(conn):
+    assert get_seen_fingerprints(["nonexistent"], conn) == set()
+
+
+def test_get_seen_fingerprints_only_returns_matches(conn):
+    job1 = _job("https://example.com/1")
+    job2 = _job("https://example.com/2")
+    save_jobs([job1], conn)
+    seen = get_seen_fingerprints([job1.fingerprint, job2.fingerprint], conn)
+    assert job1.fingerprint in seen
+    assert job2.fingerprint not in seen
 
 
 def test_save_empty_list_returns_zero(conn):
@@ -53,5 +66,5 @@ def test_special_characters_stored_correctly(conn):
     job = _job("https://example.com/1", title="Desarrollador de Software — México")
     inserted = save_jobs([job], conn)
     assert inserted == 1
-    seen = get_seen_fingerprints(conn)
+    seen = get_seen_fingerprints([job.fingerprint], conn)
     assert job.fingerprint in seen

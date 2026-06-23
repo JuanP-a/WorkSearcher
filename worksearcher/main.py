@@ -61,7 +61,8 @@ async def _run_pipeline(config: Settings) -> None:
     conn = get_connection()
     try:
         init_db(conn)
-        seen = get_seen_fingerprints(conn)
+        candidate_fps = [j.fingerprint for j in relevant]
+        seen = get_seen_fingerprints(candidate_fps, conn)
         new_jobs = deduplicate(relevant, seen)
         logger.info("New (unseen): %d jobs", len(new_jobs))
 

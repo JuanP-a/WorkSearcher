@@ -64,6 +64,12 @@ def save_jobs(jobs: list[Job], conn: sqlite3.Connection) -> int:
     return after - before
 
 
-def get_seen_fingerprints(conn: sqlite3.Connection) -> set[str]:
-    rows = conn.execute("SELECT fingerprint FROM jobs").fetchall()
+def get_seen_fingerprints(candidates: list[str], conn: sqlite3.Connection) -> set[str]:
+    if not candidates:
+        return set()
+    placeholders = ",".join("?" * len(candidates))
+    rows = conn.execute(
+        f"SELECT fingerprint FROM jobs WHERE fingerprint IN ({placeholders})",
+        candidates,
+    ).fetchall()
     return {row[0] for row in rows}
