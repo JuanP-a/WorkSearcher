@@ -1,10 +1,10 @@
-from worksearcher.core.models import Job, JobSource
 from worksearcher.core.filters import (
-    is_relevant,
-    filter_jobs,
     extract_min_years_required,
+    filter_jobs,
+    is_relevant,
     meets_experience_requirement,
 )
+from worksearcher.core.models import Job, JobSource
 
 KEYWORDS = ["python", "backend", "cybersecurity", "security engineer", "soc", "pentester"]
 

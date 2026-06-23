@@ -3,18 +3,15 @@ Scraper parsing tests — pure unit tests using fixture data.
 No HTTP calls, no playwright. Tests the parsing logic extracted
 from each scraper's response-handling code.
 """
-import xml.etree.ElementTree as ET
 
+import httpx
 import pytest
+import respx
 
-from worksearcher.core.models import Job, JobSource
-from worksearcher.scrapers.wwr_scraper import _parse_title_and_company
+from worksearcher.core.models import JobSource
 from worksearcher.scrapers.remoteok_scraper import scrape as remoteok_scrape
 from worksearcher.scrapers.remotive_scraper import scrape as remotive_scrape
-import respx
-import httpx
-import json
-
+from worksearcher.scrapers.wwr_scraper import _parse_title_and_company
 
 # --- WWR: _parse_title_and_company ---
 

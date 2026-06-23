@@ -19,7 +19,8 @@ def _slug(keyword: str) -> str:
 
 
 def _blocking_scrape(config: Settings) -> list[Job]:
-    from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+    from playwright.sync_api import TimeoutError as PWTimeout
+    from playwright.sync_api import sync_playwright
 
     jobs: list[Job] = []
     seen_urls: set[str] = set()

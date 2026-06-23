@@ -10,13 +10,13 @@ from worksearcher.core.filters import filter_jobs
 from worksearcher.core.models import Job
 from worksearcher.notifier.whatsapp import send_digest
 from worksearcher.scrapers import (
+    bumeran_scraper,
+    computrabajo_scraper,
+    cybersecjobs_scraper,
     jobspy_scraper,
     remoteok_scraper,
     remotive_scraper,
     wwr_scraper,
-    cybersecjobs_scraper,
-    computrabajo_scraper,
-    bumeran_scraper,
 )
 from worksearcher.storage.database import (
     get_connection,

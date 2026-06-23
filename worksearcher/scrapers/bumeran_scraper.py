@@ -72,9 +72,9 @@ def _blocking_scrape(config: Settings) -> list[Job]:
 
                         # Text lines: ["Publicado hace X días", "Job Title", "Company", "Location"]
                         raw = link.inner_text().strip()
-                        lines = [l.strip() for l in raw.split("\n") if l.strip()]
+                        lines = [ln.strip() for ln in raw.split("\n") if ln.strip()]
 
-                        title = next((l for l in lines if len(l) > 5 and not l.startswith("Publicado")), "")
+                        title = next((ln for ln in lines if len(ln) > 5 and not ln.startswith("Publicado")), "")
                         company_idx = lines.index(title) + 1 if title in lines else -1
                         company = lines[company_idx] if 0 < company_idx < len(lines) else ""
 

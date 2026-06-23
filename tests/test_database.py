@@ -1,7 +1,15 @@
 import sqlite3
+
 import pytest
+
 from worksearcher.core.models import Job, JobSource
-from worksearcher.storage.database import init_db, save_jobs, get_seen_fingerprints, get_unnotified_jobs, mark_jobs_notified
+from worksearcher.storage.database import (
+    get_seen_fingerprints,
+    get_unnotified_jobs,
+    init_db,
+    mark_jobs_notified,
+    save_jobs,
+)
 
 
 @pytest.fixture

@@ -1,5 +1,5 @@
-import sqlite3
 import logging
+import sqlite3
 from pathlib import Path
 
 from worksearcher.core.models import Job, JobSource

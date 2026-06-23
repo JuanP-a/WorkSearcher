@@ -3,12 +3,16 @@ Pipeline orchestration tests — verify _run_pipeline wiring.
 Uses in-memory SQLite and fake scrapers/notifier; no real HTTP calls.
 """
 import sqlite3
+
 import pytest
 
 from worksearcher.core.models import Job, JobSource
 from worksearcher.main import _run_pipeline
-from worksearcher.storage.database import init_db, save_jobs, get_seen_fingerprints, mark_jobs_notified
-
+from worksearcher.storage.database import (
+    init_db,
+    mark_jobs_notified,
+    save_jobs,
+)
 
 # --- Fixtures ---
 
