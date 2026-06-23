@@ -20,7 +20,7 @@ jobs:
           uv pip install -r requirements.txt
 
       - name: Lint
-        run: uv run ruff check worksearcher/ tests/
+        run: uvx ruff check worksearcher/ tests/
 
       - name: Test
         run: uv run pytest tests/ -q
