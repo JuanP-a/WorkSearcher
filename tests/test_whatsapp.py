@@ -17,13 +17,6 @@ def _job(n: int, source: JobSource = JobSource.REMOTEOK) -> Job:
     )
 
 
-class FakeSettings:
-    META_PHONE_NUMBER_ID = "123456789"
-    META_ACCESS_TOKEN = "fake_token"
-    META_RECIPIENT_PHONE = "521234567890"
-    META_API_VERSION = "v21.0"
-
-
 # --- _build_message ---
 
 def test_build_message_header():
@@ -57,7 +50,6 @@ def test_build_message_overflow_shows_count():
 def test_build_message_truncates_at_max():
     jobs = [_job(i) for i in range(20)]
     msg = _build_message(jobs)
-    # Only first MAX_JOBS_PER_MESSAGE titles should appear
     assert f"Job {_MAX_JOBS_PER_MESSAGE - 1}" in msg
     assert f"Job {_MAX_JOBS_PER_MESSAGE}" not in msg
 
@@ -77,35 +69,35 @@ def test_build_message_empty_list():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_send_digest_returns_true_on_success():
+async def test_send_digest_returns_true_on_success(fake_settings):
     respx.post("https://graph.facebook.com/v21.0/123456789/messages").mock(
         return_value=httpx.Response(200, json={"messages": [{"id": "wamid.abc"}]})
     )
-    result = await send_digest([_job(1)], FakeSettings())
+    result = await send_digest([_job(1)], fake_settings)
     assert result is True
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_send_digest_returns_false_on_401():
+async def test_send_digest_returns_false_on_401(fake_settings):
     respx.post("https://graph.facebook.com/v21.0/123456789/messages").mock(
         return_value=httpx.Response(401, json={"error": {"code": 190, "message": "Invalid token"}})
     )
-    result = await send_digest([_job(1)], FakeSettings())
+    result = await send_digest([_job(1)], fake_settings)
     assert result is False
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_send_digest_returns_false_on_network_error():
+async def test_send_digest_returns_false_on_network_error(fake_settings):
     respx.post("https://graph.facebook.com/v21.0/123456789/messages").mock(
         side_effect=httpx.ConnectError("Network unreachable")
     )
-    result = await send_digest([_job(1)], FakeSettings())
+    result = await send_digest([_job(1)], fake_settings)
     assert result is False
 
 
 @pytest.mark.asyncio
-async def test_send_digest_returns_false_for_empty_list():
-    result = await send_digest([], FakeSettings())
+async def test_send_digest_returns_false_for_empty_list(fake_settings):
+    result = await send_digest([], fake_settings)
     assert result is False

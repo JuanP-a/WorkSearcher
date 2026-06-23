@@ -66,18 +66,13 @@ REMOTEOK_FIXTURE = [
 ]
 
 
-class FakeSettings:
-    keywords_list = ["python", "backend", "cybersecurity"]
-    MAX_YEARS_EXPERIENCE = 3
-
-
 @pytest.mark.asyncio
 @respx.mock
-async def test_remoteok_parses_jobs_correctly():
+async def test_remoteok_parses_jobs_correctly(fake_settings):
     respx.get("https://remoteok.com/api").mock(
         return_value=httpx.Response(200, json=REMOTEOK_FIXTURE)
     )
-    jobs = await remoteok_scrape(FakeSettings())
+    jobs = await remoteok_scrape(fake_settings)
     assert len(jobs) == 2
     assert jobs[0].title == "Python Developer"
     assert jobs[0].company == "Startup"
@@ -88,11 +83,11 @@ async def test_remoteok_parses_jobs_correctly():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remoteok_skips_metadata_item():
+async def test_remoteok_skips_metadata_item(fake_settings):
     respx.get("https://remoteok.com/api").mock(
         return_value=httpx.Response(200, json=REMOTEOK_FIXTURE)
     )
-    jobs = await remoteok_scrape(FakeSettings())
+    jobs = await remoteok_scrape(fake_settings)
     # metadata item has no "position" key — should be skipped
     titles = [j.title for j in jobs]
     assert "metadata item" not in titles
@@ -100,21 +95,21 @@ async def test_remoteok_skips_metadata_item():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remoteok_returns_empty_on_http_error():
+async def test_remoteok_returns_empty_on_http_error(fake_settings):
     respx.get("https://remoteok.com/api").mock(
         return_value=httpx.Response(500)
     )
-    jobs = await remoteok_scrape(FakeSettings())
+    jobs = await remoteok_scrape(fake_settings)
     assert jobs == []
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remoteok_returns_empty_on_network_error():
+async def test_remoteok_returns_empty_on_network_error(fake_settings):
     respx.get("https://remoteok.com/api").mock(
         side_effect=httpx.ConnectError("timeout")
     )
-    jobs = await remoteok_scrape(FakeSettings())
+    jobs = await remoteok_scrape(fake_settings)
     assert jobs == []
 
 
@@ -144,11 +139,11 @@ REMOTIVE_FIXTURE = {
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remotive_parses_jobs_correctly():
+async def test_remotive_parses_jobs_correctly(fake_settings):
     respx.get("https://remotive.com/api/remote-jobs").mock(
         return_value=httpx.Response(200, json=REMOTIVE_FIXTURE)
     )
-    jobs = await remotive_scrape(FakeSettings())
+    jobs = await remotive_scrape(fake_settings)
     assert len(jobs) == 2
     assert jobs[0].title == "Backend Developer"
     assert jobs[0].company == "Remote Co"
@@ -158,29 +153,29 @@ async def test_remotive_parses_jobs_correctly():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remotive_handles_empty_jobs_list():
+async def test_remotive_handles_empty_jobs_list(fake_settings):
     respx.get("https://remotive.com/api/remote-jobs").mock(
         return_value=httpx.Response(200, json={"jobs": []})
     )
-    jobs = await remotive_scrape(FakeSettings())
+    jobs = await remotive_scrape(fake_settings)
     assert jobs == []
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remotive_handles_missing_jobs_key():
+async def test_remotive_handles_missing_jobs_key(fake_settings):
     respx.get("https://remotive.com/api/remote-jobs").mock(
         return_value=httpx.Response(200, json={"error": "unexpected"})
     )
-    jobs = await remotive_scrape(FakeSettings())
+    jobs = await remotive_scrape(fake_settings)
     assert jobs == []
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remotive_returns_empty_on_http_error():
+async def test_remotive_returns_empty_on_http_error(fake_settings):
     respx.get("https://remotive.com/api/remote-jobs").mock(
         return_value=httpx.Response(429)
     )
-    jobs = await remotive_scrape(FakeSettings())
+    jobs = await remotive_scrape(fake_settings)
     assert jobs == []
