@@ -21,6 +21,7 @@ class FakeSettings:
     META_PHONE_NUMBER_ID = "123456789"
     META_ACCESS_TOKEN = "fake_token"
     META_RECIPIENT_PHONE = "521234567890"
+    META_API_VERSION = "v21.0"
 
 
 # --- _build_message ---

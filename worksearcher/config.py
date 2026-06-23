@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     META_PHONE_NUMBER_ID: str
     META_ACCESS_TOKEN: str
     META_RECIPIENT_PHONE: str
+    META_API_VERSION: str = "v21.0"
 
     # Post-scrape filter applied to ALL scrapers — broad, no limit
     SEARCH_KEYWORDS: str = (
