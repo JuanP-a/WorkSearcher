@@ -10,19 +10,20 @@ httpcore==1.0.9
 httpx==0.28.1
 idna==3.18
 iniconfig==2.3.0
+langdetect==1.0.9
 markdownify==1.2.2
 numpy==2.4.6
 packaging==26.2
 pandas==2.3.3
 playwright==1.60.0
 pluggy==1.6.0
+pydantic==2.13.4
 pydantic-core==2.46.4
 pydantic-settings==2.14.1
-pydantic==2.13.4
 pyee==13.0.1
 pygments==2.20.0
-pytest-asyncio==1.4.0
 pytest==9.1.0
+pytest-asyncio==1.4.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-jobspy @ git+https://github.com/Bunsly/JobSpy.git@fda080a373e8226f3fd60635323f5da9af9892b1
@@ -30,6 +31,7 @@ pytz==2026.2
 regex==2024.11.6
 requests==2.34.2
 respx==0.23.1
+ruff==0.15.18
 six==1.17.0
 soupsieve==2.8.4
 tls-client==1.0.1
