@@ -539,3 +539,107 @@ async def test_hackernews_populates_posted_at(fake_settings):
     jobs = await hn_scrape(fake_settings)
     assert jobs[0].posted_at is not None
     assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=timezone.utc)
+
+
+# --- Himalayas: min_salary_usd_monthly ---
+
+HIMALAYAS_FIXTURE_USD_MONTHLY = {
+    "jobs": [{
+        "title": "Backend Engineer", "companyName": "Co",
+        "applicationLink": "https://himalayas.app/co/backend",
+        "guid": "https://himalayas.app/co/backend",
+        "description": "Python", "locationRestrictions": [],
+        "pubDate": None, "currency": "USD", "minSalary": 2000, "salaryPeriod": "monthly",
+    }]
+}
+
+HIMALAYAS_FIXTURE_USD_ANNUAL = {
+    "jobs": [{
+        "title": "Backend Engineer", "companyName": "Co",
+        "applicationLink": "https://himalayas.app/co/backend",
+        "guid": "https://himalayas.app/co/backend",
+        "description": "Python", "locationRestrictions": [],
+        "pubDate": None, "currency": "USD", "minSalary": 24000, "salaryPeriod": "annual",
+    }]
+}
+
+HIMALAYAS_FIXTURE_EUR = {
+    "jobs": [{
+        "title": "Backend Engineer", "companyName": "Co",
+        "applicationLink": "https://himalayas.app/co/backend",
+        "guid": "https://himalayas.app/co/backend",
+        "description": "Python", "locationRestrictions": [],
+        "pubDate": None, "currency": "EUR", "minSalary": 2000, "salaryPeriod": "monthly",
+    }]
+}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_himalayas_salary_usd_monthly(fake_settings):
+    respx.get("https://himalayas.app/jobs/api").mock(
+        return_value=httpx.Response(200, json=HIMALAYAS_FIXTURE_USD_MONTHLY)
+    )
+    jobs = await himalayas_scrape(fake_settings)
+    assert jobs[0].min_salary_usd_monthly == 2000.0
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_himalayas_salary_usd_annual_converted(fake_settings):
+    respx.get("https://himalayas.app/jobs/api").mock(
+        return_value=httpx.Response(200, json=HIMALAYAS_FIXTURE_USD_ANNUAL)
+    )
+    jobs = await himalayas_scrape(fake_settings)
+    assert jobs[0].min_salary_usd_monthly == 2000.0  # 24000 / 12
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_himalayas_salary_non_usd_ignored(fake_settings):
+    respx.get("https://himalayas.app/jobs/api").mock(
+        return_value=httpx.Response(200, json=HIMALAYAS_FIXTURE_EUR)
+    )
+    jobs = await himalayas_scrape(fake_settings)
+    assert jobs[0].min_salary_usd_monthly is None
+
+
+# --- RemoteOK: min_salary_usd_monthly ---
+
+REMOTEOK_FIXTURE_WITH_SALARY = [
+    {"legal": "metadata"},
+    {
+        "position": "Python Developer", "company": "Startup",
+        "slug": "python-dev-123", "description": "Python skills",
+        "epoch": None, "salary_min": 1500, "salary_max": 2500,
+    },
+]
+
+REMOTEOK_FIXTURE_ZERO_SALARY = [
+    {"legal": "metadata"},
+    {
+        "position": "Python Developer", "company": "Startup",
+        "slug": "python-dev-456", "description": "Python skills",
+        "epoch": None, "salary_min": 0, "salary_max": 0,
+    },
+]
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_remoteok_salary_populated(fake_settings):
+    respx.get("https://remoteok.com/api").mock(
+        return_value=httpx.Response(200, json=REMOTEOK_FIXTURE_WITH_SALARY)
+    )
+    jobs = await remoteok_scrape(fake_settings)
+    assert jobs[0].min_salary_usd_monthly == 1500.0
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_remoteok_zero_salary_treated_as_none(fake_settings):
+    respx.get("https://remoteok.com/api").mock(
+        return_value=httpx.Response(200, json=REMOTEOK_FIXTURE_ZERO_SALARY)
+    )
+    jobs = await remoteok_scrape(fake_settings)
+    assert jobs[0].min_salary_usd_monthly is None

@@ -31,6 +31,11 @@ async def scrape(config: Settings) -> list[Job]:
                     datetime.fromtimestamp(int(epoch), tz=timezone.utc) if epoch else None
                 )
 
+                salary_min = item.get("salary_min")
+                min_salary_usd_monthly = (
+                    float(salary_min) if salary_min and int(salary_min) > 0 else None
+                )
+
                 job = Job(
                     title=item.get("position", ""),
                     company=item.get("company", ""),
@@ -40,6 +45,7 @@ async def scrape(config: Settings) -> list[Job]:
                     is_remote=True,
                     description=item.get("description", ""),
                     posted_at=posted_at,
+                    min_salary_usd_monthly=min_salary_usd_monthly,
                 )
                 jobs.append(job)
             except Exception as exc:
