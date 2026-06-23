@@ -49,7 +49,7 @@ def test_fingerprint_is_case_insensitive():
 
 
 def test_job_source_enum_covers_all_platforms():
-    # All 9 target platforms must be represented
+    # All 11 target platforms must be represented
     assert JobSource.LINKEDIN == "linkedin"
     assert JobSource.INDEED == "indeed"
     assert JobSource.GLASSDOOR == "glassdoor"
@@ -59,6 +59,8 @@ def test_job_source_enum_covers_all_platforms():
     assert JobSource.CYBERSECJOBS == "cybersecjobs"
     assert JobSource.COMPUTRABAJO == "computrabajo"
     assert JobSource.BUMERAN == "bumeran"
+    assert JobSource.HIMALAYAS == "himalayas"
+    assert JobSource.HACKERNEWS == "hackernews"
 
 
 def test_fingerprint_differs_by_company():

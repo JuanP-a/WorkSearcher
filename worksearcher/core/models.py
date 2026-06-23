@@ -15,6 +15,8 @@ class JobSource(StrEnum):
     CYBERSECJOBS = "cybersecjobs"
     COMPUTRABAJO = "computrabajo"
     BUMERAN = "bumeran"
+    HIMALAYAS = "himalayas"
+    HACKERNEWS = "hackernews"
 
 
 class Job(BaseModel):
