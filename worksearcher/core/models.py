@@ -28,6 +28,7 @@ class Job(BaseModel):
     is_remote: bool
     description: str = ""
     posted_at: datetime | None = None
+    min_salary_usd_monthly: float | None = None
 
     @computed_field
     @property
