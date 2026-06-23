@@ -13,6 +13,7 @@ from worksearcher.core.utils import slugify
 from worksearcher.scrapers.bumeran_scraper import _REMOTE_MARKERS as BUMERAN_MARKERS
 from worksearcher.scrapers.computrabajo_scraper import _REMOTE_MARKERS as COMPUTRABAJO_MARKERS
 from worksearcher.scrapers.cybersecjobs_scraper import scrape as cybersecjobs_scrape
+from worksearcher.scrapers.himalayas_scraper import scrape as himalayas_scrape
 from worksearcher.scrapers.remoteok_scraper import scrape as remoteok_scrape
 from worksearcher.scrapers.remotive_scraper import scrape as remotive_scrape
 from worksearcher.scrapers.wwr_scraper import _parse_title_and_company
@@ -284,4 +285,63 @@ async def test_cybersecjobs_returns_empty_on_http_error(fake_settings):
         return_value=httpx.Response(503)
     )
     jobs = await cybersecjobs_scrape(fake_settings)
+    assert jobs == []
+
+
+# --- Himalayas scraper: parse fixture response ---
+
+HIMALAYAS_FIXTURE = {
+    "jobs": [
+        {
+            "title": "Backend Engineer",
+            "companyName": "Acme Corp",
+            "applicationLink": "https://himalayas.app/companies/acme/jobs/backend-engineer",
+            "guid": "https://himalayas.app/companies/acme/jobs/backend-engineer",
+            "description": "<p>Python and Django experience required.</p>",
+            "locationRestrictions": [],
+        },
+        {
+            "title": "Frontend Developer",
+            "companyName": "Beta Inc",
+            "applicationLink": "https://himalayas.app/companies/beta/jobs/frontend-dev",
+            "guid": "https://himalayas.app/companies/beta/jobs/frontend-dev",
+            "description": "<p>React and TypeScript experience.</p>",
+            "locationRestrictions": ["USA"],
+        },
+    ]
+}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_himalayas_parses_jobs_correctly(fake_settings):
+    respx.get("https://himalayas.app/jobs/api").mock(
+        return_value=httpx.Response(200, json=HIMALAYAS_FIXTURE)
+    )
+    jobs = await himalayas_scrape(fake_settings)
+    assert len(jobs) == 2
+    assert jobs[0].title == "Backend Engineer"
+    assert jobs[0].company == "Acme Corp"
+    assert jobs[0].source == JobSource.HIMALAYAS
+    assert jobs[0].is_remote is True
+    assert "himalayas.app" in jobs[0].url
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_himalayas_returns_empty_on_http_error(fake_settings):
+    respx.get("https://himalayas.app/jobs/api").mock(
+        return_value=httpx.Response(503)
+    )
+    jobs = await himalayas_scrape(fake_settings)
+    assert jobs == []
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_himalayas_handles_empty_jobs_list(fake_settings):
+    respx.get("https://himalayas.app/jobs/api").mock(
+        return_value=httpx.Response(200, json={"jobs": []})
+    )
+    jobs = await himalayas_scrape(fake_settings)
     assert jobs == []
