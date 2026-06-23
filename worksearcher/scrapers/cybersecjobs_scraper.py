@@ -31,6 +31,7 @@ async def scrape(config: Settings) -> list[Job]:
             return []
 
         jobs = []
+        missing_company = 0
         for link in job_links:
             try:
                 title = link.get_text(strip=True)
@@ -40,9 +41,21 @@ async def scrape(config: Settings) -> list[Job]:
 
                 job_url = f"{_BASE_URL}{href}" if href.startswith("/") else href
 
+                # isecjobs listing page doesn't always expose company — try common card patterns
+                card = link.find_parent(class_=lambda c: c and "card" in c)
+                company = ""
+                if card:
+                    for selector in ("small", ".text-muted", "p"):
+                        el = card.select_one(selector)
+                        if el and el.get_text(strip=True):
+                            company = el.get_text(strip=True)
+                            break
+                if not company:
+                    missing_company += 1
+
                 jobs.append(Job(
                     title=title,
-                    company="",
+                    company=company,
                     location="Remote",
                     url=job_url,
                     source=JobSource.CYBERSECJOBS,
@@ -51,6 +64,9 @@ async def scrape(config: Settings) -> list[Job]:
             except Exception as exc:
                 logger.warning("CyberSecJobs(isecjobs): skipping malformed link: %s", exc)
                 continue
+
+        if missing_company:
+            logger.warning("CyberSecJobs(isecjobs): %d/%d jobs missing company name", missing_company, len(jobs))
 
         logger.info("CyberSecJobs(isecjobs): %d jobs found", len(jobs))
         return jobs
