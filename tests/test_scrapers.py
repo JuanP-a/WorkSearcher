@@ -16,6 +16,7 @@ from worksearcher.scrapers.cybersecjobs_scraper import scrape as cybersecjobs_sc
 from worksearcher.scrapers.himalayas_scraper import scrape as himalayas_scrape
 from worksearcher.scrapers.remoteok_scraper import scrape as remoteok_scrape
 from worksearcher.scrapers.remotive_scraper import scrape as remotive_scrape
+from worksearcher.scrapers.hackernews_scraper import scrape as hn_scrape, _parse_hn_comment
 from worksearcher.scrapers.wwr_scraper import _parse_title_and_company
 
 # --- WWR: _parse_title_and_company ---
@@ -344,4 +345,108 @@ async def test_himalayas_handles_empty_jobs_list(fake_settings):
         return_value=httpx.Response(200, json={"jobs": []})
     )
     jobs = await himalayas_scrape(fake_settings)
+    assert jobs == []
+
+
+# --- HackerNews "Who's Hiring" scraper ---
+
+HN_SEARCH_URL = "https://hn.algolia.com/api/v1/search"
+HN_ITEMS_URL = "https://hn.algolia.com/api/v1/items/48000000"
+
+HN_SEARCH_FIXTURE = {
+    "hits": [{"objectID": "48000000", "title": "Ask HN: Who is hiring? (June 2026)"}]
+}
+
+HN_ITEMS_FIXTURE = {
+    "type": "story",
+    "id": 48000000,
+    "title": "Ask HN: Who is hiring? (June 2026)",
+    "children": [
+        {
+            "type": "comment",
+            "id": 48000001,
+            "author": "alice",
+            "text": "Acme Corp | Backend Engineer | Remote | REMOTE | $120-150K<p>We use Python and Django.",
+        },
+        {
+            "type": "comment",
+            "id": 48000002,
+            "author": "bob",
+            "text": "Beta Inc | Security Analyst | NYC | ONSITE",
+        },
+        {
+            "type": "comment",
+            "id": 48000003,
+            "author": None,
+            "text": None,  # deleted comment — must be skipped
+        },
+    ],
+}
+
+
+def test_parse_hn_comment_pipe_format():
+    title, company = _parse_hn_comment("Acme Corp | Backend Engineer | Remote | REMOTE")
+    assert company == "Acme Corp"
+    assert title == "Backend Engineer"
+
+
+def test_parse_hn_comment_no_pipe():
+    title, company = _parse_hn_comment("We are hiring engineers with 5+ years experience")
+    assert title == "We are hiring engineers with 5+ years experience"
+    assert company == ""
+
+
+def test_parse_hn_comment_strips_html():
+    title, company = _parse_hn_comment("Acme &#x2F; Corp | Engineer<p>details here")
+    assert "/" in company  # &#x2F; decoded to /
+    assert "<p>" not in title
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_hackernews_parses_jobs_correctly(fake_settings):
+    respx.get(HN_SEARCH_URL).mock(
+        return_value=httpx.Response(200, json=HN_SEARCH_FIXTURE)
+    )
+    respx.get(HN_ITEMS_URL).mock(
+        return_value=httpx.Response(200, json=HN_ITEMS_FIXTURE)
+    )
+    jobs = await hn_scrape(fake_settings)
+    assert len(jobs) == 2  # deleted comment skipped
+    assert jobs[0].company == "Acme Corp"
+    assert jobs[0].title == "Backend Engineer"
+    assert jobs[0].source == JobSource.HACKERNEWS
+    assert jobs[0].is_remote is True
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_hackernews_skips_deleted_comments(fake_settings):
+    respx.get(HN_SEARCH_URL).mock(
+        return_value=httpx.Response(200, json=HN_SEARCH_FIXTURE)
+    )
+    respx.get(HN_ITEMS_URL).mock(
+        return_value=httpx.Response(200, json=HN_ITEMS_FIXTURE)
+    )
+    jobs = await hn_scrape(fake_settings)
+    assert len(jobs) == 2  # only 2 of 3 comments have text
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_hackernews_returns_empty_on_no_thread(fake_settings):
+    respx.get(HN_SEARCH_URL).mock(
+        return_value=httpx.Response(200, json={"hits": []})
+    )
+    jobs = await hn_scrape(fake_settings)
+    assert jobs == []
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_hackernews_returns_empty_on_http_error(fake_settings):
+    respx.get(HN_SEARCH_URL).mock(
+        return_value=httpx.Response(500)
+    )
+    jobs = await hn_scrape(fake_settings)
     assert jobs == []
