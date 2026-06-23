@@ -69,6 +69,27 @@ def test_build_message_empty_list():
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_send_digest_sends_correct_payload(fake_settings):
+    route = respx.post("https://graph.facebook.com/v21.0/123456789/messages").mock(
+        return_value=httpx.Response(200, json={"messages": [{"id": "wamid.abc"}]})
+    )
+    await send_digest([_job(1)], fake_settings)
+
+    assert route.called
+    request = route.calls[0].request
+    assert request.headers["Authorization"] == "Bearer fake_token"
+    assert request.headers["Content-Type"] == "application/json"
+    body = request.content
+    import json
+    payload = json.loads(body)
+    assert payload["to"] == "521234567890"
+    assert payload["messaging_product"] == "whatsapp"
+    assert payload["type"] == "text"
+    assert "Job 1" in payload["text"]["body"]
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_send_digest_returns_true_on_success(fake_settings):
     respx.post("https://graph.facebook.com/v21.0/123456789/messages").mock(
         return_value=httpx.Response(200, json={"messages": [{"id": "wamid.abc"}]})
