@@ -167,3 +167,25 @@ def test_filter_jobs_no_experience_cap_keeps_all_relevant():
     ]
     result = filter_jobs(jobs, KEYWORDS, max_years_experience=None)
     assert len(result) == 2
+
+
+# --- Unicode dash variants in range pattern (BACK-3) ---
+
+def test_range_figure_dash():
+    # U+2012 figure dash — common in copy-pasted PDF text
+    assert extract_min_years_required("3‒5 years of experience") == 3
+
+
+def test_range_em_dash():
+    # U+2014 em dash
+    assert extract_min_years_required("2—4 years experience") == 2
+
+
+def test_range_minus_sign():
+    # U+2212 minus sign — different from ASCII hyphen
+    assert extract_min_years_required("4−6 years experience") == 4
+
+
+def test_range_unicode_takes_lower_bound():
+    # Ensures we don't accidentally pick the upper bound (e.g. 8) and reject valid job
+    assert extract_min_years_required("1−8 years experience") == 1

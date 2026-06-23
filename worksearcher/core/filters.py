@@ -2,8 +2,9 @@ import re
 
 from worksearcher.core.models import Job
 
-# Matches "3-5 years", "3–5 years" — capture both bounds to take the minimum
-_RANGE_PATTERN = re.compile(r'(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?|años?)', re.IGNORECASE)
+# Matches "3-5 years", "3–5 years", "3‒5 years", "3—5 years", "3−5 years"
+# Covers: hyphen-minus, figure dash, en dash, em dash, minus sign (U+2212)
+_RANGE_PATTERN = re.compile(r'(\d+)\s*[-‒–—−]\s*(\d+)\s*(?:years?|yrs?|años?)', re.IGNORECASE)
 
 # Matches "5 years", "5+ years", "5 años de experiencia"
 _YEARS_PATTERN = re.compile(r'(\d+)\+?\s*(?:years?|yrs?|años?)', re.IGNORECASE)
