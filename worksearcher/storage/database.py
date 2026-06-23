@@ -37,8 +37,7 @@ def init_db(conn: sqlite3.Connection) -> None:
 def save_jobs(jobs: list[Job], conn: sqlite3.Connection) -> int:
     if not jobs:
         return 0
-    before = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
-    conn.executemany(
+    cursor = conn.executemany(
         """
         INSERT OR IGNORE INTO jobs
             (fingerprint, title, company, location, url, source, is_remote, description, posted_at)
@@ -60,8 +59,7 @@ def save_jobs(jobs: list[Job], conn: sqlite3.Connection) -> int:
         ],
     )
     conn.commit()
-    after = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
-    return after - before
+    return cursor.rowcount
 
 
 def get_seen_fingerprints(candidates: list[str], conn: sqlite3.Connection) -> set[str]:
