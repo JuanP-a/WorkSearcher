@@ -18,7 +18,14 @@ from worksearcher.scrapers import (
     computrabajo_scraper,
     bumeran_scraper,
 )
-from worksearcher.storage.database import get_connection, get_seen_fingerprints, init_db, save_jobs
+from worksearcher.storage.database import (
+    get_connection,
+    get_seen_fingerprints,
+    get_unnotified_jobs,
+    init_db,
+    mark_jobs_notified,
+    save_jobs,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,6 +68,14 @@ async def _run_pipeline(config: Settings) -> None:
     conn = get_connection()
     try:
         init_db(conn)
+
+        # Retry any jobs saved but not notified in a previous failed run
+        unnotified = get_unnotified_jobs(conn)
+        if unnotified:
+            logger.info("Retrying notification for %d jobs from previous failed run", len(unnotified))
+            if await send_digest(unnotified, config):
+                mark_jobs_notified([j.fingerprint for j in unnotified], conn)
+
         candidate_fps = [j.fingerprint for j in relevant]
         seen = get_seen_fingerprints(candidate_fps, conn)
         new_jobs = deduplicate(relevant, seen)
@@ -70,7 +85,9 @@ async def _run_pipeline(config: Settings) -> None:
             inserted = save_jobs(new_jobs, conn)
             logger.info("Inserted %d jobs into DB", inserted)
             sent = await send_digest(new_jobs, config)
-            if not sent:
+            if sent:
+                mark_jobs_notified([j.fingerprint for j in new_jobs], conn)
+            else:
                 logger.warning("Notification failed — jobs saved in DB but WhatsApp not delivered")
         else:
             logger.info("No new jobs — skipping notification")

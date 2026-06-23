@@ -1,7 +1,7 @@
 import sqlite3
 import pytest
 from worksearcher.core.models import Job, JobSource
-from worksearcher.storage.database import init_db, save_jobs, get_seen_fingerprints
+from worksearcher.storage.database import init_db, save_jobs, get_seen_fingerprints, get_unnotified_jobs, mark_jobs_notified
 
 
 @pytest.fixture
@@ -60,6 +60,28 @@ def test_get_seen_fingerprints_only_returns_matches(conn):
 
 def test_save_empty_list_returns_zero(conn):
     assert save_jobs([], conn) == 0
+
+
+def test_get_unnotified_jobs_returns_unsent(conn):
+    job = _job("https://example.com/1")
+    save_jobs([job], conn)
+    unnotified = get_unnotified_jobs(conn)
+    assert len(unnotified) == 1
+    assert unnotified[0].url == job.url
+
+
+def test_mark_jobs_notified_clears_pending(conn):
+    job = _job("https://example.com/1")
+    save_jobs([job], conn)
+    mark_jobs_notified([job.fingerprint], conn)
+    assert get_unnotified_jobs(conn) == []
+
+
+def test_get_unnotified_jobs_empty_when_all_notified(conn):
+    job = _job("https://example.com/1")
+    save_jobs([job], conn)
+    mark_jobs_notified([job.fingerprint], conn)
+    assert get_unnotified_jobs(conn) == []
 
 
 def test_special_characters_stored_correctly(conn):

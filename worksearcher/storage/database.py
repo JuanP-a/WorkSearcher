@@ -2,7 +2,7 @@ import sqlite3
 import logging
 from pathlib import Path
 
-from worksearcher.core.models import Job
+from worksearcher.core.models import Job, JobSource
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +28,15 @@ def init_db(conn: sqlite3.Connection) -> None:
             is_remote   INTEGER NOT NULL,
             description TEXT,
             posted_at   TEXT,
-            created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+            created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
+            notified    INTEGER NOT NULL DEFAULT 0
         )
     """)
+    # Migrate existing DBs that predate the notified column
+    try:
+        conn.execute("ALTER TABLE jobs ADD COLUMN notified INTEGER NOT NULL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     conn.commit()
 
 
@@ -60,6 +66,39 @@ def save_jobs(jobs: list[Job], conn: sqlite3.Connection) -> int:
     )
     conn.commit()
     return cursor.rowcount
+
+
+def get_unnotified_jobs(conn: sqlite3.Connection) -> list[Job]:
+    rows = conn.execute(
+        "SELECT title, company, location, url, source, is_remote, description "
+        "FROM jobs WHERE notified=0"
+    ).fetchall()
+    jobs = []
+    for row in rows:
+        try:
+            jobs.append(Job(
+                title=row[0],
+                company=row[1],
+                location=row[2],
+                url=row[3],
+                source=JobSource(row[4]),
+                is_remote=bool(row[5]),
+                description=row[6] or "",
+            ))
+        except Exception:
+            continue
+    return jobs
+
+
+def mark_jobs_notified(fingerprints: list[str], conn: sqlite3.Connection) -> None:
+    if not fingerprints:
+        return
+    placeholders = ",".join("?" * len(fingerprints))
+    conn.execute(
+        f"UPDATE jobs SET notified=1 WHERE fingerprint IN ({placeholders})",
+        fingerprints,
+    )
+    conn.commit()
 
 
 def get_seen_fingerprints(candidates: list[str], conn: sqlite3.Connection) -> set[str]:

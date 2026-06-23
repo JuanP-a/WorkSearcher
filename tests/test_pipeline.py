@@ -7,7 +7,7 @@ import pytest
 
 from worksearcher.core.models import Job, JobSource
 from worksearcher.main import _run_pipeline
-from worksearcher.storage.database import init_db, save_jobs, get_seen_fingerprints
+from worksearcher.storage.database import init_db, save_jobs, get_seen_fingerprints, mark_jobs_notified
 
 
 # --- Fixtures ---
@@ -83,9 +83,10 @@ async def test_pipeline_skips_notification_when_no_new_jobs(tmp_path, monkeypatc
     conn = sqlite3.connect(db_path)
     init_db(conn)
 
-    # Pre-insert the jobs so they're already seen
+    # Pre-insert the jobs as already seen and already notified
     existing = [_job(1), _job(2)]
     save_jobs(existing, conn)
+    mark_jobs_notified([j.fingerprint for j in existing], conn)
     conn.close()
 
     monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper(existing)])
