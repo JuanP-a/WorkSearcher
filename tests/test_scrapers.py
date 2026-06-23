@@ -451,3 +451,91 @@ async def test_hackernews_returns_empty_on_http_error(fake_settings):
     )
     jobs = await hn_scrape(fake_settings)
     assert jobs == []
+
+
+# --- posted_at population tests ---
+
+from datetime import datetime, timezone
+
+# --- Himalayas: posted_at ---
+
+HIMALAYAS_FIXTURE_WITH_DATE = {
+    "jobs": [
+        {
+            "title": "Backend Engineer",
+            "companyName": "Acme Corp",
+            "applicationLink": "https://himalayas.app/companies/acme/jobs/backend",
+            "guid": "https://himalayas.app/companies/acme/jobs/backend",
+            "description": "Python role",
+            "locationRestrictions": [],
+            "pubDate": 1700000000,
+        }
+    ]
+}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_himalayas_populates_posted_at(fake_settings):
+    respx.get("https://himalayas.app/jobs/api").mock(
+        return_value=httpx.Response(200, json=HIMALAYAS_FIXTURE_WITH_DATE)
+    )
+    jobs = await himalayas_scrape(fake_settings)
+    assert jobs[0].posted_at is not None
+    assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=timezone.utc)
+
+
+# --- RemoteOK: posted_at ---
+
+REMOTEOK_FIXTURE_WITH_DATE = [
+    {"legal": "metadata"},
+    {
+        "position": "Python Developer",
+        "company": "Startup",
+        "slug": "python-dev-123",
+        "description": "We need Python skills",
+        "epoch": 1700000000,
+    },
+]
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_remoteok_populates_posted_at(fake_settings):
+    respx.get("https://remoteok.com/api").mock(
+        return_value=httpx.Response(200, json=REMOTEOK_FIXTURE_WITH_DATE)
+    )
+    jobs = await remoteok_scrape(fake_settings)
+    assert jobs[0].posted_at is not None
+    assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=timezone.utc)
+
+
+# --- HackerNews: posted_at ---
+
+HN_ITEMS_FIXTURE_WITH_DATE = {
+    "type": "story",
+    "id": 48000000,
+    "children": [
+        {
+            "type": "comment",
+            "id": 48000001,
+            "author": "alice",
+            "text": "Acme Corp | Backend Engineer | Remote | REMOTE",
+            "created_at_i": 1700000000,
+        },
+    ],
+}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_hackernews_populates_posted_at(fake_settings):
+    respx.get(HN_SEARCH_URL).mock(
+        return_value=httpx.Response(200, json=HN_SEARCH_FIXTURE)
+    )
+    respx.get(HN_ITEMS_URL).mock(
+        return_value=httpx.Response(200, json=HN_ITEMS_FIXTURE_WITH_DATE)
+    )
+    jobs = await hn_scrape(fake_settings)
+    assert jobs[0].posted_at is not None
+    assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=timezone.utc)

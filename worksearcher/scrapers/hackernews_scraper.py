@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 import httpx
 from bs4 import BeautifulSoup
@@ -67,6 +68,12 @@ async def scrape(config: Settings) -> list[Job]:
                 if not title:
                     continue
                 job_id = child.get("id", "")
+                created_at_i = child.get("created_at_i")
+                posted_at = (
+                    datetime.fromtimestamp(created_at_i, tz=timezone.utc)
+                    if created_at_i
+                    else None
+                )
                 job = Job(
                     title=title,
                     company=company,
@@ -75,6 +82,7 @@ async def scrape(config: Settings) -> list[Job]:
                     source=JobSource.HACKERNEWS,
                     is_remote=True,
                     description=BeautifulSoup(text, "html.parser").get_text(),
+                    posted_at=posted_at,
                 )
                 jobs.append(job)
             except Exception as exc:

@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 import httpx
 
@@ -31,6 +32,11 @@ async def scrape(config: Settings) -> list[Job]:
                 # Prefer applicationLink, fall back to guid
                 url = item.get("applicationLink", "") or item.get("guid", "")
 
+                pub_date = item.get("pubDate")
+                posted_at = (
+                    datetime.fromtimestamp(pub_date, tz=timezone.utc) if pub_date else None
+                )
+
                 job = Job(
                     title=item.get("title", ""),
                     company=item.get("companyName", ""),
@@ -39,6 +45,7 @@ async def scrape(config: Settings) -> list[Job]:
                     source=JobSource.HIMALAYAS,
                     is_remote=True,
                     description=item.get("description", ""),
+                    posted_at=posted_at,
                 )
                 jobs.append(job)
             except Exception as exc:

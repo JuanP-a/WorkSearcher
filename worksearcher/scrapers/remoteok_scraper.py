@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 import httpx
 
@@ -25,6 +26,11 @@ async def scrape(config: Settings) -> list[Job]:
         jobs = []
         for item in listings:
             try:
+                epoch = item.get("epoch")
+                posted_at = (
+                    datetime.fromtimestamp(int(epoch), tz=timezone.utc) if epoch else None
+                )
+
                 job = Job(
                     title=item.get("position", ""),
                     company=item.get("company", ""),
@@ -33,6 +39,7 @@ async def scrape(config: Settings) -> list[Job]:
                     source=JobSource.REMOTEOK,
                     is_remote=True,
                     description=item.get("description", ""),
+                    posted_at=posted_at,
                 )
                 jobs.append(job)
             except Exception as exc:
