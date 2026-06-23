@@ -47,9 +47,17 @@ _SCRAPERS: list[Callable[[Settings], Coroutine[None, None, list[Job]]]] = [
 async def _run_pipeline(config: Settings) -> None:
     logger.info("Pipeline started")
 
-    # Scrape all platforms concurrently
+    # Scrape all platforms concurrently — 120s cap per scraper prevents a hung
+    # Playwright browser from blocking the pipeline until the next cron fires on top
+    async def _scrape_with_timeout(scraper: Callable[[Settings], Coroutine[None, None, list[Job]]]) -> list[Job]:
+        try:
+            return await asyncio.wait_for(scraper(config), timeout=120)
+        except TimeoutError:
+            logger.error("Scraper %s timed out after 120s", scraper.__name__)
+            return []
+
     results = await asyncio.gather(
-        *[scraper(config) for scraper in _SCRAPERS],
+        *[_scrape_with_timeout(scraper) for scraper in _SCRAPERS],
         return_exceptions=True,
     )
     all_jobs: list[Job] = []
