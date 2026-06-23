@@ -1,21 +1,15 @@
 import asyncio
 import logging
-import re
 
 from worksearcher.config import Settings
 from worksearcher.core.models import Job, JobSource
+from worksearcher.core.utils import slugify
 
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://mx.computrabajo.com"
 
 _REMOTE_MARKERS = {"remoto", "home office", "teletrabajo"}
-
-
-def _slug(keyword: str) -> str:
-    slug = keyword.lower().strip()
-    slug = re.sub(r"[^\w\s-]", "", slug)
-    return re.sub(r"\s+", "-", slug)
 
 
 def _blocking_scrape(config: Settings) -> list[Job]:
@@ -48,7 +42,7 @@ def _blocking_scrape(config: Settings) -> list[Job]:
             # corrupt the browser state for the rest of the run
             page = context.new_page()
             try:
-                url = f"{_BASE_URL}/trabajo-de-{_slug(keyword)}"
+                url = f"{_BASE_URL}/trabajo-de-{slugify(keyword)}"
                 logger.debug("Computrabajo: fetching %s", url)
                 page.goto(url, wait_until="domcontentloaded", timeout=30_000)
 

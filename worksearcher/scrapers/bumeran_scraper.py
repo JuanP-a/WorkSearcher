@@ -1,9 +1,9 @@
 import asyncio
 import logging
-import re
 
 from worksearcher.config import Settings
 from worksearcher.core.models import Job, JobSource
+from worksearcher.core.utils import slugify
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +20,6 @@ _SEARCH_TERMS = [
     "ciberseguridad",
     "seguridad informatica",
 ]
-
-
-def _slug(keyword: str) -> str:
-    slug = keyword.lower().strip()
-    slug = re.sub(r"[^\w\s-]", "", slug)
-    return re.sub(r"\s+", "-", slug)
 
 
 def _blocking_scrape(config: Settings) -> list[Job]:
@@ -50,10 +44,14 @@ def _blocking_scrape(config: Settings) -> list[Job]:
 
         for term in _SEARCH_TERMS:
             try:
-                url = f"{_BASE_URL}/empleos-busqueda-{_slug(term)}.html"
+                url = f"{_BASE_URL}/empleos-busqueda-{slugify(term)}.html"
                 logger.debug("Bumeran: fetching %s", url)
                 page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-                page.wait_for_timeout(3_000)
+                try:
+                    page.wait_for_selector("a[href*='/empleos/']", timeout=10_000)
+                except Exception:
+                    logger.warning("Bumeran: no job links found for '%s'", term)
+                    continue
 
                 # Each job is an <a href="/empleos/..."> containing title + company in text
                 job_links = page.query_selector_all("a[href*='/empleos/']")

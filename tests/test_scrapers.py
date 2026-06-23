@@ -9,10 +9,9 @@ import pytest
 import respx
 
 from worksearcher.core.models import JobSource
+from worksearcher.core.utils import slugify
 from worksearcher.scrapers.bumeran_scraper import _REMOTE_MARKERS as BUMERAN_MARKERS
-from worksearcher.scrapers.bumeran_scraper import _slug as bumeran_slug
 from worksearcher.scrapers.computrabajo_scraper import _REMOTE_MARKERS as COMPUTRABAJO_MARKERS
-from worksearcher.scrapers.computrabajo_scraper import _slug as computrabajo_slug
 from worksearcher.scrapers.cybersecjobs_scraper import scrape as cybersecjobs_scrape
 from worksearcher.scrapers.remoteok_scraper import scrape as remoteok_scrape
 from worksearcher.scrapers.remotive_scraper import scrape as remotive_scrape
@@ -186,19 +185,29 @@ async def test_remotive_returns_empty_on_http_error(fake_settings):
     assert jobs == []
 
 
-# --- Bumeran: pure helper functions ---
+# --- slugify (shared utility used by Bumeran and Computrabajo) ---
 
-def test_bumeran_slug_spaces_to_dashes():
-    assert bumeran_slug("seguridad informatica") == "seguridad-informatica"
-
-
-def test_bumeran_slug_lowercases():
-    assert bumeran_slug("Python") == "python"
+def test_slugify_spaces_to_dashes():
+    assert slugify("seguridad informatica") == "seguridad-informatica"
 
 
-def test_bumeran_slug_strips_special_chars():
-    assert bumeran_slug("c++") == "c"
+def test_slugify_lowercases():
+    assert slugify("Python") == "python"
 
+
+def test_slugify_strips_special_chars():
+    assert slugify("c++") == "c"
+
+
+def test_slugify_software_engineer():
+    assert slugify("software engineer") == "software-engineer"
+
+
+def test_slugify_devops():
+    assert slugify("DevOps") == "devops"
+
+
+# --- Bumeran: remote markers ---
 
 def test_bumeran_remote_markers_cover_common_terms():
     assert "remoto" in BUMERAN_MARKERS
@@ -206,15 +215,7 @@ def test_bumeran_remote_markers_cover_common_terms():
     assert "teletrabajo" in BUMERAN_MARKERS
 
 
-# --- Computrabajo: pure helper functions ---
-
-def test_computrabajo_slug_spaces_to_dashes():
-    assert computrabajo_slug("software engineer") == "software-engineer"
-
-
-def test_computrabajo_slug_lowercases():
-    assert computrabajo_slug("DevOps") == "devops"
-
+# --- Computrabajo: remote markers ---
 
 def test_computrabajo_remote_markers_cover_common_terms():
     assert "remoto" in COMPUTRABAJO_MARKERS
