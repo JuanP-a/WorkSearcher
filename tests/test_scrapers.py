@@ -9,6 +9,11 @@ import pytest
 import respx
 
 from worksearcher.core.models import JobSource
+from worksearcher.scrapers.bumeran_scraper import _REMOTE_MARKERS as BUMERAN_MARKERS
+from worksearcher.scrapers.bumeran_scraper import _slug as bumeran_slug
+from worksearcher.scrapers.computrabajo_scraper import _REMOTE_MARKERS as COMPUTRABAJO_MARKERS
+from worksearcher.scrapers.computrabajo_scraper import _slug as computrabajo_slug
+from worksearcher.scrapers.cybersecjobs_scraper import scrape as cybersecjobs_scrape
 from worksearcher.scrapers.remoteok_scraper import scrape as remoteok_scrape
 from worksearcher.scrapers.remotive_scraper import scrape as remotive_scrape
 from worksearcher.scrapers.wwr_scraper import _parse_title_and_company
@@ -178,4 +183,104 @@ async def test_remotive_returns_empty_on_http_error(fake_settings):
         return_value=httpx.Response(429)
     )
     jobs = await remotive_scrape(fake_settings)
+    assert jobs == []
+
+
+# --- Bumeran: pure helper functions ---
+
+def test_bumeran_slug_spaces_to_dashes():
+    assert bumeran_slug("seguridad informatica") == "seguridad-informatica"
+
+
+def test_bumeran_slug_lowercases():
+    assert bumeran_slug("Python") == "python"
+
+
+def test_bumeran_slug_strips_special_chars():
+    assert bumeran_slug("c++") == "c"
+
+
+def test_bumeran_remote_markers_cover_common_terms():
+    assert "remoto" in BUMERAN_MARKERS
+    assert "home office" in BUMERAN_MARKERS
+    assert "teletrabajo" in BUMERAN_MARKERS
+
+
+# --- Computrabajo: pure helper functions ---
+
+def test_computrabajo_slug_spaces_to_dashes():
+    assert computrabajo_slug("software engineer") == "software-engineer"
+
+
+def test_computrabajo_slug_lowercases():
+    assert computrabajo_slug("DevOps") == "devops"
+
+
+def test_computrabajo_remote_markers_cover_common_terms():
+    assert "remoto" in COMPUTRABAJO_MARKERS
+    assert "home office" in COMPUTRABAJO_MARKERS
+
+
+# --- CyberSecJobs: HTML parsing via mocked HTTP ---
+
+_ISECJOBS_HTML = """
+<html><body>
+  <div class="card">
+    <h5><a class="stretched-link" href="/job/123">Security Engineer</a></h5>
+    <small>SecureCorp</small>
+  </div>
+  <div class="card">
+    <h5><a class="stretched-link" href="/job/456">Penetration Tester</a></h5>
+    <small>CyberFirm</small>
+  </div>
+</body></html>
+"""
+
+_ISECJOBS_EMPTY_HTML = "<html><body><p>No jobs found</p></body></html>"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_parses_jobs_correctly(fake_settings):
+    respx.get("https://isecjobs.com/?remote=1").mock(
+        return_value=httpx.Response(200, text=_ISECJOBS_HTML)
+    )
+    jobs = await cybersecjobs_scrape(fake_settings)
+    assert len(jobs) == 2
+    titles = {j.title for j in jobs}
+    assert "Security Engineer" in titles
+    assert "Penetration Tester" in titles
+    assert all(j.source == JobSource.CYBERSECJOBS for j in jobs)
+    assert all(j.is_remote for j in jobs)
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_extracts_company_from_card(fake_settings):
+    respx.get("https://isecjobs.com/?remote=1").mock(
+        return_value=httpx.Response(200, text=_ISECJOBS_HTML)
+    )
+    jobs = await cybersecjobs_scrape(fake_settings)
+    companies = {j.company for j in jobs}
+    assert "SecureCorp" in companies
+    assert "CyberFirm" in companies
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_returns_empty_when_no_links(fake_settings):
+    respx.get("https://isecjobs.com/?remote=1").mock(
+        return_value=httpx.Response(200, text=_ISECJOBS_EMPTY_HTML)
+    )
+    jobs = await cybersecjobs_scrape(fake_settings)
+    assert jobs == []
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_returns_empty_on_http_error(fake_settings):
+    respx.get("https://isecjobs.com/?remote=1").mock(
+        return_value=httpx.Response(503)
+    )
+    jobs = await cybersecjobs_scrape(fake_settings)
     assert jobs == []
