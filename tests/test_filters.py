@@ -189,3 +189,10 @@ def test_range_minus_sign():
 def test_range_unicode_takes_lower_bound():
     # Ensures we don't accidentally pick the upper bound (e.g. 8) and reject valid job
     assert extract_min_years_required("1−8 years experience") == 1
+
+
+def test_fake_settings_has_filter_fields(fake_settings):
+    assert hasattr(fake_settings, "MAX_JOB_AGE_DAYS")
+    assert hasattr(fake_settings, "blacklist_list")
+    assert hasattr(fake_settings, "filter_languages_list")
+    assert hasattr(fake_settings, "MIN_SALARY_USD_MONTHLY")

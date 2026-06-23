@@ -25,6 +25,21 @@ class Settings(BaseSettings):
     SCRAPE_INTERVAL_HOURS: int = 4
     MAX_YEARS_EXPERIENCE: int = 3
 
+    MAX_JOB_AGE_DAYS: int = 30
+
+    BLACKLIST_KEYWORDS: str = (
+        "security clearance,active clearance,top secret,ts/sci,dod clearance,"
+        "secret clearance,public trust,us citizens only,"
+        "must be authorized to work in the us,us work authorization,"
+        "must be a us citizen,green card required,"
+        "sales executive,account executive,must relocate,relocation required,"
+        "staffing agency,recruiting firm"
+    )
+
+    MIN_SALARY_USD_MONTHLY: int | None = None
+
+    FILTER_LANGUAGES: str = "en,es"
+
     @field_validator("JOBSPY_SEARCH_TERMS")
     @classmethod
     def jobspy_terms_max_five(cls, v: str) -> str:
@@ -40,3 +55,11 @@ class Settings(BaseSettings):
     @property
     def jobspy_terms_list(self) -> list[str]:
         return [t.strip().lower() for t in self.JOBSPY_SEARCH_TERMS.split(",") if t.strip()]
+
+    @property
+    def blacklist_list(self) -> list[str]:
+        return [k.strip().lower() for k in self.BLACKLIST_KEYWORDS.split(",") if k.strip()]
+
+    @property
+    def filter_languages_list(self) -> list[str]:
+        return [lang.strip().lower() for lang in self.FILTER_LANGUAGES.split(",") if lang.strip()]

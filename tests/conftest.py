@@ -10,6 +10,10 @@ class FakeSettings:
     META_API_VERSION = "v21.0"
     keywords_list = ["python", "backend", "cybersecurity"]
     MAX_YEARS_EXPERIENCE = 3
+    MAX_JOB_AGE_DAYS = 30
+    blacklist_list: list = []
+    filter_languages_list: list = ["en", "es"]
+    MIN_SALARY_USD_MONTHLY = None
 
 
 @pytest.fixture
