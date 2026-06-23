@@ -1,12 +1,13 @@
-import httpx
 import logging
+
+import httpx
 
 from worksearcher.config import Settings
 from worksearcher.core.models import Job
 
 logger = logging.getLogger(__name__)
 
-_META_API_URL = "https://graph.facebook.com/v21.0/{phone_id}/messages"
+_META_API_URL = "https://graph.facebook.com/{version}/{phone_id}/messages"
 _MAX_JOBS_PER_MESSAGE = 10
 
 
@@ -24,7 +25,7 @@ async def send_digest(jobs: list[Job], config: Settings) -> bool:
     if not jobs:
         return False
 
-    url = _META_API_URL.format(phone_id=config.META_PHONE_NUMBER_ID)
+    url = _META_API_URL.format(version=config.META_API_VERSION, phone_id=config.META_PHONE_NUMBER_ID)
     headers = {
         "Authorization": f"Bearer {config.META_ACCESS_TOKEN}",
         "Content-Type": "application/json",

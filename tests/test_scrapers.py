@@ -3,18 +3,19 @@ Scraper parsing tests — pure unit tests using fixture data.
 No HTTP calls, no playwright. Tests the parsing logic extracted
 from each scraper's response-handling code.
 """
-import xml.etree.ElementTree as ET
 
+import httpx
 import pytest
+import respx
 
-from worksearcher.core.models import Job, JobSource
-from worksearcher.scrapers.wwr_scraper import _parse_title_and_company
+from worksearcher.core.models import JobSource
+from worksearcher.core.utils import slugify
+from worksearcher.scrapers.bumeran_scraper import _REMOTE_MARKERS as BUMERAN_MARKERS
+from worksearcher.scrapers.computrabajo_scraper import _REMOTE_MARKERS as COMPUTRABAJO_MARKERS
+from worksearcher.scrapers.cybersecjobs_scraper import scrape as cybersecjobs_scrape
 from worksearcher.scrapers.remoteok_scraper import scrape as remoteok_scrape
 from worksearcher.scrapers.remotive_scraper import scrape as remotive_scrape
-import respx
-import httpx
-import json
-
+from worksearcher.scrapers.wwr_scraper import _parse_title_and_company
 
 # --- WWR: _parse_title_and_company ---
 
@@ -69,18 +70,13 @@ REMOTEOK_FIXTURE = [
 ]
 
 
-class FakeSettings:
-    keywords_list = ["python", "backend", "cybersecurity"]
-    MAX_YEARS_EXPERIENCE = 3
-
-
 @pytest.mark.asyncio
 @respx.mock
-async def test_remoteok_parses_jobs_correctly():
+async def test_remoteok_parses_jobs_correctly(fake_settings):
     respx.get("https://remoteok.com/api").mock(
         return_value=httpx.Response(200, json=REMOTEOK_FIXTURE)
     )
-    jobs = await remoteok_scrape(FakeSettings())
+    jobs = await remoteok_scrape(fake_settings)
     assert len(jobs) == 2
     assert jobs[0].title == "Python Developer"
     assert jobs[0].company == "Startup"
@@ -91,11 +87,11 @@ async def test_remoteok_parses_jobs_correctly():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remoteok_skips_metadata_item():
+async def test_remoteok_skips_metadata_item(fake_settings):
     respx.get("https://remoteok.com/api").mock(
         return_value=httpx.Response(200, json=REMOTEOK_FIXTURE)
     )
-    jobs = await remoteok_scrape(FakeSettings())
+    jobs = await remoteok_scrape(fake_settings)
     # metadata item has no "position" key — should be skipped
     titles = [j.title for j in jobs]
     assert "metadata item" not in titles
@@ -103,21 +99,21 @@ async def test_remoteok_skips_metadata_item():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remoteok_returns_empty_on_http_error():
+async def test_remoteok_returns_empty_on_http_error(fake_settings):
     respx.get("https://remoteok.com/api").mock(
         return_value=httpx.Response(500)
     )
-    jobs = await remoteok_scrape(FakeSettings())
+    jobs = await remoteok_scrape(fake_settings)
     assert jobs == []
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remoteok_returns_empty_on_network_error():
+async def test_remoteok_returns_empty_on_network_error(fake_settings):
     respx.get("https://remoteok.com/api").mock(
         side_effect=httpx.ConnectError("timeout")
     )
-    jobs = await remoteok_scrape(FakeSettings())
+    jobs = await remoteok_scrape(fake_settings)
     assert jobs == []
 
 
@@ -147,11 +143,11 @@ REMOTIVE_FIXTURE = {
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remotive_parses_jobs_correctly():
+async def test_remotive_parses_jobs_correctly(fake_settings):
     respx.get("https://remotive.com/api/remote-jobs").mock(
         return_value=httpx.Response(200, json=REMOTIVE_FIXTURE)
     )
-    jobs = await remotive_scrape(FakeSettings())
+    jobs = await remotive_scrape(fake_settings)
     assert len(jobs) == 2
     assert jobs[0].title == "Backend Developer"
     assert jobs[0].company == "Remote Co"
@@ -161,29 +157,131 @@ async def test_remotive_parses_jobs_correctly():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remotive_handles_empty_jobs_list():
+async def test_remotive_handles_empty_jobs_list(fake_settings):
     respx.get("https://remotive.com/api/remote-jobs").mock(
         return_value=httpx.Response(200, json={"jobs": []})
     )
-    jobs = await remotive_scrape(FakeSettings())
+    jobs = await remotive_scrape(fake_settings)
     assert jobs == []
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remotive_handles_missing_jobs_key():
+async def test_remotive_handles_missing_jobs_key(fake_settings):
     respx.get("https://remotive.com/api/remote-jobs").mock(
         return_value=httpx.Response(200, json={"error": "unexpected"})
     )
-    jobs = await remotive_scrape(FakeSettings())
+    jobs = await remotive_scrape(fake_settings)
     assert jobs == []
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_remotive_returns_empty_on_http_error():
+async def test_remotive_returns_empty_on_http_error(fake_settings):
     respx.get("https://remotive.com/api/remote-jobs").mock(
         return_value=httpx.Response(429)
     )
-    jobs = await remotive_scrape(FakeSettings())
+    jobs = await remotive_scrape(fake_settings)
+    assert jobs == []
+
+
+# --- slugify (shared utility used by Bumeran and Computrabajo) ---
+
+def test_slugify_spaces_to_dashes():
+    assert slugify("seguridad informatica") == "seguridad-informatica"
+
+
+def test_slugify_lowercases():
+    assert slugify("Python") == "python"
+
+
+def test_slugify_strips_special_chars():
+    assert slugify("c++") == "c"
+
+
+def test_slugify_software_engineer():
+    assert slugify("software engineer") == "software-engineer"
+
+
+def test_slugify_devops():
+    assert slugify("DevOps") == "devops"
+
+
+# --- Bumeran: remote markers ---
+
+def test_bumeran_remote_markers_cover_common_terms():
+    assert "remoto" in BUMERAN_MARKERS
+    assert "home office" in BUMERAN_MARKERS
+    assert "teletrabajo" in BUMERAN_MARKERS
+
+
+# --- Computrabajo: remote markers ---
+
+def test_computrabajo_remote_markers_cover_common_terms():
+    assert "remoto" in COMPUTRABAJO_MARKERS
+    assert "home office" in COMPUTRABAJO_MARKERS
+
+
+# --- CyberSecJobs: HTML parsing via mocked HTTP ---
+
+_ISECJOBS_HTML = """
+<html><body>
+  <div class="card">
+    <h5><a class="stretched-link" href="/job/123">Security Engineer</a></h5>
+    <small>SecureCorp</small>
+  </div>
+  <div class="card">
+    <h5><a class="stretched-link" href="/job/456">Penetration Tester</a></h5>
+    <small>CyberFirm</small>
+  </div>
+</body></html>
+"""
+
+_ISECJOBS_EMPTY_HTML = "<html><body><p>No jobs found</p></body></html>"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_parses_jobs_correctly(fake_settings):
+    respx.get("https://isecjobs.com/?remote=1").mock(
+        return_value=httpx.Response(200, text=_ISECJOBS_HTML)
+    )
+    jobs = await cybersecjobs_scrape(fake_settings)
+    assert len(jobs) == 2
+    titles = {j.title for j in jobs}
+    assert "Security Engineer" in titles
+    assert "Penetration Tester" in titles
+    assert all(j.source == JobSource.CYBERSECJOBS for j in jobs)
+    assert all(j.is_remote for j in jobs)
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_extracts_company_from_card(fake_settings):
+    respx.get("https://isecjobs.com/?remote=1").mock(
+        return_value=httpx.Response(200, text=_ISECJOBS_HTML)
+    )
+    jobs = await cybersecjobs_scrape(fake_settings)
+    companies = {j.company for j in jobs}
+    assert "SecureCorp" in companies
+    assert "CyberFirm" in companies
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_returns_empty_when_no_links(fake_settings):
+    respx.get("https://isecjobs.com/?remote=1").mock(
+        return_value=httpx.Response(200, text=_ISECJOBS_EMPTY_HTML)
+    )
+    jobs = await cybersecjobs_scrape(fake_settings)
+    assert jobs == []
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_returns_empty_on_http_error(fake_settings):
+    respx.get("https://isecjobs.com/?remote=1").mock(
+        return_value=httpx.Response(503)
+    )
+    jobs = await cybersecjobs_scrape(fake_settings)
     assert jobs == []

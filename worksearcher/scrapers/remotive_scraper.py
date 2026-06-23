@@ -1,5 +1,6 @@
-import httpx
 import logging
+
+import httpx
 
 from worksearcher.config import Settings
 from worksearcher.core.models import Job, JobSource

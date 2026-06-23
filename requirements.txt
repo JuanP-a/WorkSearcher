@@ -1,4 +1,4 @@
-git+https://github.com/Bunsly/JobSpy.git#egg=python-jobspy
+git+https://github.com/Bunsly/JobSpy.git@fda080a373e8226f3fd60635323f5da9af9892b1#egg=python-jobspy
 httpx>=0.27.0
 pydantic>=2.7.0
 pydantic-settings>=2.3.0

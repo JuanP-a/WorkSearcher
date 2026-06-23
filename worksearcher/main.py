@@ -10,15 +10,22 @@ from worksearcher.core.filters import filter_jobs
 from worksearcher.core.models import Job
 from worksearcher.notifier.whatsapp import send_digest
 from worksearcher.scrapers import (
+    bumeran_scraper,
+    computrabajo_scraper,
+    cybersecjobs_scraper,
     jobspy_scraper,
     remoteok_scraper,
     remotive_scraper,
     wwr_scraper,
-    cybersecjobs_scraper,
-    computrabajo_scraper,
-    bumeran_scraper,
 )
-from worksearcher.storage.database import get_connection, get_seen_fingerprints, init_db, save_jobs
+from worksearcher.storage.database import (
+    get_connection,
+    get_seen_fingerprints,
+    get_unnotified_jobs,
+    init_db,
+    mark_jobs_notified,
+    save_jobs,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,9 +47,17 @@ _SCRAPERS: list[Callable[[Settings], Coroutine[None, None, list[Job]]]] = [
 async def _run_pipeline(config: Settings) -> None:
     logger.info("Pipeline started")
 
-    # Scrape all platforms concurrently
+    # Scrape all platforms concurrently — 120s cap per scraper prevents a hung
+    # Playwright browser from blocking the pipeline until the next cron fires on top
+    async def _scrape_with_timeout(scraper: Callable[[Settings], Coroutine[None, None, list[Job]]]) -> list[Job]:
+        try:
+            return await asyncio.wait_for(scraper(config), timeout=120)
+        except TimeoutError:
+            logger.error("Scraper %s timed out after 120s", scraper.__name__)
+            return []
+
     results = await asyncio.gather(
-        *[scraper(config) for scraper in _SCRAPERS],
+        *[_scrape_with_timeout(scraper) for scraper in _SCRAPERS],
         return_exceptions=True,
     )
     all_jobs: list[Job] = []
@@ -61,7 +76,16 @@ async def _run_pipeline(config: Settings) -> None:
     conn = get_connection()
     try:
         init_db(conn)
-        seen = get_seen_fingerprints(conn)
+
+        # Retry any jobs saved but not notified in a previous failed run
+        unnotified = get_unnotified_jobs(conn)
+        if unnotified:
+            logger.info("Retrying notification for %d jobs from previous failed run", len(unnotified))
+            if await send_digest(unnotified, config):
+                mark_jobs_notified([j.fingerprint for j in unnotified], conn)
+
+        candidate_fps = [j.fingerprint for j in relevant]
+        seen = get_seen_fingerprints(candidate_fps, conn)
         new_jobs = deduplicate(relevant, seen)
         logger.info("New (unseen): %d jobs", len(new_jobs))
 
@@ -69,7 +93,9 @@ async def _run_pipeline(config: Settings) -> None:
             inserted = save_jobs(new_jobs, conn)
             logger.info("Inserted %d jobs into DB", inserted)
             sent = await send_digest(new_jobs, config)
-            if not sent:
+            if sent:
+                mark_jobs_notified([j.fingerprint for j in new_jobs], conn)
+            else:
                 logger.warning("Notification failed — jobs saved in DB but WhatsApp not delivered")
         else:
             logger.info("No new jobs — skipping notification")

@@ -1,5 +1,5 @@
-from worksearcher.core.models import Job, JobSource
 from worksearcher.core.deduplicator import deduplicate
+from worksearcher.core.models import Job, JobSource
 
 
 def _job(url: str) -> Job:

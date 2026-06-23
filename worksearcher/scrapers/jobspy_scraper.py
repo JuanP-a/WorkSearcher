@@ -29,13 +29,17 @@ async def scrape(config: Settings) -> list[Job]:
             jobs = []
             for _, row in results.iterrows():
                 try:
-                    source_str = str(row.get("site", "linkedin")).lower()
+                    source_str = str(row.get("site", "")).lower()
+                    source = _SOURCE_MAP.get(source_str)
+                    if source is None:
+                        logger.warning("jobspy: unknown source %r — skipping row", source_str)
+                        continue
                     job = Job(
                         title=str(row.get("title", "")),
                         company=str(row.get("company", "")),
                         location=str(row.get("location", "Remote")),
                         url=str(row.get("job_url", "")),
-                        source=_SOURCE_MAP.get(source_str, JobSource.LINKEDIN),
+                        source=source,
                         is_remote=True,
                         description=str(row.get("description", "") or ""),
                     )

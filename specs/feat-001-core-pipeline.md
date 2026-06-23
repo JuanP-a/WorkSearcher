@@ -2,7 +2,7 @@
 spec_id: FEAT-001
 title: "Core Scraping Pipeline"
 version: 1.0
-status: draft
+status: implemented
 priority: high
 created: 2026-06-18
 author: JuanP-a

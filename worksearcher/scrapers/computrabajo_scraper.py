@@ -1,23 +1,20 @@
 import asyncio
 import logging
-import re
 
 from worksearcher.config import Settings
 from worksearcher.core.models import Job, JobSource
+from worksearcher.core.utils import slugify
 
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://mx.computrabajo.com"
 
-
-def _slug(keyword: str) -> str:
-    slug = keyword.lower().strip()
-    slug = re.sub(r"[^\w\s-]", "", slug)
-    return re.sub(r"\s+", "-", slug)
+_REMOTE_MARKERS = {"remoto", "home office", "teletrabajo"}
 
 
 def _blocking_scrape(config: Settings) -> list[Job]:
-    from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+    from playwright.sync_api import TimeoutError as PWTimeout
+    from playwright.sync_api import sync_playwright
 
     jobs: list[Job] = []
     seen_urls: set[str] = set()
@@ -29,7 +26,7 @@ def _blocking_scrape(config: Settings) -> list[Job]:
         )
         context = browser.new_context(
             user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "Mozilla/5.0 (X11; Linux x86_64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
             ),
             viewport={"width": 1280, "height": 800},
@@ -39,22 +36,26 @@ def _blocking_scrape(config: Settings) -> list[Job]:
         context.add_init_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
         )
-        page = context.new_page()
 
         for keyword in config.keywords_list[:5]:
+            # Fresh page per keyword so a CAPTCHA or 403 on one keyword doesn't
+            # corrupt the browser state for the rest of the run
+            page = context.new_page()
             try:
-                url = f"{_BASE_URL}/trabajo-de-{_slug(keyword)}"
+                url = f"{_BASE_URL}/trabajo-de-{slugify(keyword)}"
                 logger.debug("Computrabajo: fetching %s", url)
                 page.goto(url, wait_until="domcontentloaded", timeout=30_000)
 
                 if "403" in page.title() or "Forbidden" in page.title():
                     logger.warning("Computrabajo: 403 received — skipping remaining keywords")
+                    page.close()
                     break
 
                 try:
                     page.wait_for_selector("article.box_offer", timeout=10_000)
                 except PWTimeout:
                     logger.warning("Computrabajo: no job cards loaded for '%s'", keyword)
+                    page.close()
                     continue
 
                 for article in page.query_selector_all("article.box_offer"):
@@ -77,6 +78,10 @@ def _blocking_scrape(config: Settings) -> list[Job]:
                             continue
                         seen_urls.add(job_url)
 
+                        article_text = article.inner_text().lower()
+                        if not any(m in article_text for m in _REMOTE_MARKERS):
+                            continue
+
                         jobs.append(Job(
                             title=title,
                             company=company,
@@ -91,7 +96,8 @@ def _blocking_scrape(config: Settings) -> list[Job]:
 
             except Exception as exc:
                 logger.warning("Computrabajo: keyword '%s' failed: %s", keyword, exc)
-                continue
+            finally:
+                page.close()
 
         browser.close()
 
