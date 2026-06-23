@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://mx.computrabajo.com"
 
+_REMOTE_MARKERS = {"remoto", "home office", "teletrabajo"}
+
 
 def _slug(keyword: str) -> str:
     slug = keyword.lower().strip()
@@ -76,6 +78,10 @@ def _blocking_scrape(config: Settings) -> list[Job]:
                         if job_url in seen_urls:
                             continue
                         seen_urls.add(job_url)
+
+                        article_text = article.inner_text().lower()
+                        if not any(m in article_text for m in _REMOTE_MARKERS):
+                            continue
 
                         jobs.append(Job(
                             title=title,

@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://www.bumeran.com.mx"
 
+_REMOTE_MARKERS = {"remoto", "home office", "teletrabajo", "trabajo remoto"}
+
 # Bumeran MX mostly uses Spanish job titles — these seeds give broad coverage
 # Our main pipeline's keyword filter handles relevance after scraping
 _SEARCH_TERMS = [
@@ -77,6 +79,9 @@ def _blocking_scrape(config: Settings) -> list[Job]:
                         company = lines[company_idx] if 0 < company_idx < len(lines) else ""
 
                         if not title:
+                            continue
+
+                        if not any(m in raw.lower() for m in _REMOTE_MARKERS):
                             continue
 
                         jobs.append(Job(
