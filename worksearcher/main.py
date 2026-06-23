@@ -13,6 +13,8 @@ from worksearcher.scrapers import (
     bumeran_scraper,
     computrabajo_scraper,
     cybersecjobs_scraper,
+    hackernews_scraper,
+    himalayas_scraper,
     jobspy_scraper,
     remoteok_scraper,
     remotive_scraper,
@@ -41,6 +43,8 @@ _SCRAPERS: list[Callable[[Settings], Coroutine[None, None, list[Job]]]] = [
     cybersecjobs_scraper.scrape,
     computrabajo_scraper.scrape,
     bumeran_scraper.scrape,
+    himalayas_scraper.scrape,
+    hackernews_scraper.scrape,
 ]
 
 

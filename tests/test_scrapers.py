@@ -13,10 +13,11 @@ from worksearcher.core.utils import slugify
 from worksearcher.scrapers.bumeran_scraper import _REMOTE_MARKERS as BUMERAN_MARKERS
 from worksearcher.scrapers.computrabajo_scraper import _REMOTE_MARKERS as COMPUTRABAJO_MARKERS
 from worksearcher.scrapers.cybersecjobs_scraper import scrape as cybersecjobs_scrape
+from worksearcher.scrapers.hackernews_scraper import _parse_hn_comment
+from worksearcher.scrapers.hackernews_scraper import scrape as hn_scrape
 from worksearcher.scrapers.himalayas_scraper import scrape as himalayas_scrape
 from worksearcher.scrapers.remoteok_scraper import scrape as remoteok_scrape
 from worksearcher.scrapers.remotive_scraper import scrape as remotive_scrape
-from worksearcher.scrapers.hackernews_scraper import scrape as hn_scrape, _parse_hn_comment
 from worksearcher.scrapers.wwr_scraper import _parse_title_and_company
 
 # --- WWR: _parse_title_and_company ---

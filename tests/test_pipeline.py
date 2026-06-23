@@ -176,3 +176,10 @@ async def test_pipeline_logs_warning_when_notification_fails(tmp_path, monkeypat
         await _run_pipeline(fake_settings)
 
     assert any("Notification failed" in r.message for r in caplog.records)
+
+
+def test_scrapers_list_includes_new_platforms():
+    from worksearcher.main import _SCRAPERS
+    scraper_modules = {s.__module__ for s in _SCRAPERS}
+    assert "worksearcher.scrapers.himalayas_scraper" in scraper_modules
+    assert "worksearcher.scrapers.hackernews_scraper" in scraper_modules
