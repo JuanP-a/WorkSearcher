@@ -40,6 +40,13 @@ class Settings(BaseSettings):
 
     FILTER_LANGUAGES: str = "en,es"
 
+    @field_validator("MIN_SALARY_USD_MONTHLY", mode="before")
+    @classmethod
+    def allow_empty_salary(cls, v: object) -> object:
+        if v == "":
+            return None
+        return v
+
     @field_validator("JOBSPY_SEARCH_TERMS")
     @classmethod
     def jobspy_terms_max_five(cls, v: str) -> str:
