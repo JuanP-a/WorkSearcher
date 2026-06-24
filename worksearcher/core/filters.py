@@ -1,7 +1,9 @@
 import re
 from datetime import UTC, datetime
 
-from langdetect import detect_langs
+from langdetect import DetectorFactory, detect_langs
+
+DetectorFactory.seed = 0  # make language detection deterministic across runs
 
 from worksearcher.core.models import Job
 
