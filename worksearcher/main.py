@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from collections.abc import Callable, Coroutine
+from pathlib import Path
 
 import click
 
@@ -88,7 +89,7 @@ async def _run_pipeline(config: Settings) -> None:
     )
 
     # Dedup + persist + notify
-    conn = get_connection()
+    conn = get_connection(Path(config.DB_PATH))
     try:
         init_db(conn)
 

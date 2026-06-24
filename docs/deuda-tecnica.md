@@ -5,21 +5,9 @@ Formato: `[archivo:línea]` donde aplica. Ordenado por severidad.
 
 ---
 
-## Pendiente — requiere VPS
+## Pendiente
 
-### DEVOPS-2 — Log sin rotación — llenará el disco de la VPS
-**Archivo:** `crontab.example:3`, `README.md:31`
-Ambos usan `>> /var/log/worksearcher.log` (append infinito). Con Playwright + 4 scrapers × 4h = disco lleno en semanas. Cuando el disco se llene, SQLite falla silenciosamente.
-**Fix:** `/etc/logrotate.d/worksearcher` (daily, compress, 14 días) antes del deploy.
-
-### DEVOPS-3 — Playwright requiere `install-deps` en Ubuntu — no documentado
-**Archivo:** `README.md:13`
-`playwright install chromium` no instala dependencias del sistema (`libnss3`, `libatk-bridge2.0-0`, etc.). En VPS fresh Ubuntu 22.04 los scrapers LatAm fallarán silenciosamente.
-**Fix:** Agregar `playwright install-deps chromium` al setup, o crear `deploy/setup.sh`.
-
-### DEVOPS-7 — DB en raíz del repo — `git clean -fd` destruye historial de dedup
-**Archivo:** `worksearcher/storage/database.py:10`
-`worksearcher.db` vive junto al código. En la VPS, mover a `/var/lib/worksearcher/`.
+_(sin items pendientes)_
 
 ---
 
@@ -63,6 +51,15 @@ Movida a `worksearcher/core/utils.py` como `slugify()`.
 
 ### BACK-14 — `SCRAPE_INTERVAL_HOURS` confundía operadores ✓
 Comentado en `.env.example` como referencia humana; no lo lee el código.
+
+### DEVOPS-2 — Log sin rotación ✓
+`deploy/logrotate.conf` creado (daily, 14 días, compress). `deploy/setup.sh` lo instala en `/etc/logrotate.d/worksearcher`.
+
+### DEVOPS-3 — Playwright `install-deps` no documentado ✓
+`deploy/setup.sh` ejecuta `playwright install chromium` + `playwright install-deps chromium`. README actualizado con sección VPS que apunta al script.
+
+### DEVOPS-7 — DB en raíz del repo ✓
+`DB_PATH` configurable via `.env` (default `worksearcher.db` para dev local). En VPS: `DB_PATH=/var/lib/worksearcher/worksearcher.db`. `deploy/setup.sh` crea el directorio. `main.py` pasa `Path(config.DB_PATH)` a `get_connection()`.
 
 ### DEVOPS-1 — Sin CI/CD ✓
 `.github/workflows/ci.yml` con `jdx/mise-action` — pytest + ruff en cada push/PR.
