@@ -9,6 +9,7 @@ import pytest
 
 from worksearcher.core.models import Job, JobSource
 from worksearcher.main import _run_pipeline
+from worksearcher.notifier.whatsapp import MAX_JOBS_PER_MESSAGE
 from worksearcher.storage.database import (
     init_db,
     mark_jobs_notified,
@@ -216,3 +217,34 @@ async def test_pipeline_passes_all_filter_params_from_config(tmp_path, monkeypat
     assert captured_kwargs.get("blacklist") == fake_settings.blacklist_list
     assert captured_kwargs.get("allowed_languages") == fake_settings.filter_languages_list
     assert captured_kwargs.get("min_salary_usd_monthly") == fake_settings.MIN_SALARY_USD_MONTHLY
+
+
+@pytest.mark.asyncio
+async def test_pipeline_marks_only_sent_jobs_as_notified(tmp_path, monkeypatch, fake_settings):
+    # Fix 5c549fa: when >MAX_JOBS_PER_MESSAGE new jobs arrive, only the jobs actually
+    # included in the WhatsApp message should be marked notified. Previously all new
+    # jobs were marked, so the extras would never be retried in future runs.
+    db_path = tmp_path / "test.db"
+    conn = sqlite3.connect(db_path)
+    init_db(conn)
+    conn.close()
+
+    overflow = MAX_JOBS_PER_MESSAGE + 5
+    jobs = [_job(i) for i in range(overflow)]
+    monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper(jobs)])
+    monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
+
+    async def fake_send_digest(j, config):
+        return True
+
+    monkeypatch.setattr("worksearcher.main.send_digest", fake_send_digest)
+
+    await _run_pipeline(fake_settings)
+
+    conn = sqlite3.connect(db_path)
+    notified_count = conn.execute("SELECT COUNT(*) FROM jobs WHERE notified=1").fetchone()[0]
+    unnotified_count = conn.execute("SELECT COUNT(*) FROM jobs WHERE notified=0").fetchone()[0]
+    conn.close()
+
+    assert notified_count == MAX_JOBS_PER_MESSAGE
+    assert unnotified_count == 5

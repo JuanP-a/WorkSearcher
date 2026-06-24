@@ -1,9 +1,11 @@
 import re
 from datetime import UTC, datetime
 
-from langdetect import detect_langs
+from langdetect import DetectorFactory, detect_langs
 
 from worksearcher.core.models import Job
+
+DetectorFactory.seed = 0  # make language detection deterministic across runs
 
 # Matches "3-5 years", "3–5 years", "3‒5 years", "3—5 years", "3−5 years"
 # Covers: hyphen-minus, figure dash, en dash, em dash, minus sign (U+2212)

@@ -292,6 +292,25 @@ async def test_cybersecjobs_returns_empty_on_http_error(fake_settings):
     assert jobs == []
 
 
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_does_not_follow_redirects(fake_settings):
+    # Fix 50a10ed: follow_redirects=False prevents SSRF via open redirect.
+    # If the scraper followed the redirect, it would request attacker.com (mocked
+    # below) — respx would record the call and the assertion would fail.
+    redirect_target = respx.get("https://attacker.example.com/").mock(
+        return_value=httpx.Response(200, text="<html></html>")
+    )
+    respx.get("https://isecjobs.com/?remote=1").mock(
+        return_value=httpx.Response(
+            301, headers={"Location": "https://attacker.example.com/"}
+        )
+    )
+    jobs = await cybersecjobs_scrape(fake_settings)
+    assert not redirect_target.called
+    assert jobs == []
+
+
 # --- Himalayas scraper: parse fixture response ---
 
 HIMALAYAS_FIXTURE = {
@@ -471,6 +490,36 @@ async def test_himalayas_populates_posted_at(fake_settings):
     jobs = await himalayas_scrape(fake_settings)
     assert jobs[0].posted_at is not None
     assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=UTC)
+
+
+HIMALAYAS_FIXTURE_RFC2822 = {
+    "jobs": [
+        {
+            "title": "Backend Engineer",
+            "companyName": "Acme Corp",
+            "applicationLink": "https://himalayas.app/companies/acme/jobs/backend-rfc",
+            "guid": "https://himalayas.app/companies/acme/jobs/backend-rfc",
+            "description": "Python role",
+            "locationRestrictions": [],
+            "pubDate": "Mon, 23 Jun 2025 10:00:00 +0000",
+        }
+    ]
+}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_himalayas_parses_rfc2822_posted_at(fake_settings):
+    # Fix 7b3beec: Himalayas API returns RFC 2822 strings, not Unix timestamps.
+    # Before the fix, parsedate_to_datetime was not called for string pubDates
+    # and posted_at silently remained None, breaking the age filter entirely.
+    respx.get("https://himalayas.app/jobs/api").mock(
+        return_value=httpx.Response(200, json=HIMALAYAS_FIXTURE_RFC2822)
+    )
+    jobs = await himalayas_scrape(fake_settings)
+    assert len(jobs) == 1
+    assert jobs[0].posted_at is not None
+    assert jobs[0].posted_at == datetime(2025, 6, 23, 10, 0, 0, tzinfo=UTC)
 
 
 # --- RemoteOK: posted_at ---

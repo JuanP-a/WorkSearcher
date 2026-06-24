@@ -30,75 +30,76 @@ def _blocking_scrape(config: Settings) -> list[Job]:
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (X11; Linux x86_64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            ),
-            viewport={"width": 1280, "height": 800},
-        )
-        context.add_init_script(
-            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-        )
-        page = context.new_page()
+        try:
+            context = browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (X11; Linux x86_64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                ),
+                viewport={"width": 1280, "height": 800},
+            )
+            context.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+            )
+            page = context.new_page()
 
-        for term in _SEARCH_TERMS:
-            try:
-                url = f"{_BASE_URL}/empleos-busqueda-{slugify(term)}.html"
-                logger.debug("Bumeran: fetching %s", url)
-                page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+            for term in _SEARCH_TERMS:
                 try:
-                    page.wait_for_selector("a[href*='/empleos/']", timeout=10_000)
-                except Exception:
-                    logger.warning("Bumeran: no job links found for '%s'", term)
-                    continue
-
-                # Each job is an <a href="/empleos/..."> containing title + company in text
-                job_links = page.query_selector_all("a[href*='/empleos/']")
-                if not job_links:
-                    logger.warning("Bumeran: no job links found for '%s'", term)
-                    continue
-
-                for link in job_links:
+                    url = f"{_BASE_URL}/empleos-busqueda-{slugify(term)}.html"
+                    logger.debug("Bumeran: fetching %s", url)
+                    page.goto(url, wait_until="domcontentloaded", timeout=30_000)
                     try:
-                        href = link.get_attribute("href") or ""
-                        if not href or href in seen_urls:
-                            continue
-
-                        job_url = href if href.startswith("http") else f"{_BASE_URL}{href}"
-                        seen_urls.add(href)
-
-                        # Text lines: ["Publicado hace X días", "Job Title", "Company", "Location"]
-                        raw = link.inner_text().strip()
-                        lines = [ln.strip() for ln in raw.split("\n") if ln.strip()]
-
-                        title = next((ln for ln in lines if len(ln) > 5 and not ln.startswith("Publicado")), "")
-                        company_idx = lines.index(title) + 1 if title in lines else -1
-                        company = lines[company_idx] if 0 < company_idx < len(lines) else ""
-
-                        if not title:
-                            continue
-
-                        if not any(m in raw.lower() for m in _REMOTE_MARKERS):
-                            continue
-
-                        jobs.append(Job(
-                            title=title,
-                            company=company,
-                            location="Remote",
-                            url=job_url,
-                            source=JobSource.BUMERAN,
-                            is_remote=True,
-                        ))
-                    except Exception as exc:
-                        logger.warning("Bumeran: skipping malformed link: %s", exc)
+                        page.wait_for_selector("a[href*='/empleos/']", timeout=10_000)
+                    except Exception:
+                        logger.warning("Bumeran: no job links found for '%s'", term)
                         continue
 
-            except Exception as exc:
-                logger.warning("Bumeran: term '%s' failed: %s", term, exc)
-                continue
+                    # Each job is an <a href="/empleos/..."> containing title + company in text
+                    job_links = page.query_selector_all("a[href*='/empleos/']")
+                    if not job_links:
+                        logger.warning("Bumeran: no job links found for '%s'", term)
+                        continue
 
-        browser.close()
+                    for link in job_links:
+                        try:
+                            href = link.get_attribute("href") or ""
+                            if not href or href in seen_urls:
+                                continue
+
+                            job_url = href if href.startswith("http") else f"{_BASE_URL}{href}"
+                            seen_urls.add(href)
+
+                            # Text lines: ["Publicado hace X días", "Job Title", "Company", "Location"]
+                            raw = link.inner_text().strip()
+                            lines = [ln.strip() for ln in raw.split("\n") if ln.strip()]
+
+                            title = next((ln for ln in lines if len(ln) > 5 and not ln.startswith("Publicado")), "")
+                            company_idx = lines.index(title) + 1 if title in lines else -1
+                            company = lines[company_idx] if 0 < company_idx < len(lines) else ""
+
+                            if not title:
+                                continue
+
+                            if not any(m in raw.lower() for m in _REMOTE_MARKERS):
+                                continue
+
+                            jobs.append(Job(
+                                title=title,
+                                company=company,
+                                location="Remote",
+                                url=job_url,
+                                source=JobSource.BUMERAN,
+                                is_remote=True,
+                            ))
+                        except Exception as exc:
+                            logger.warning("Bumeran: skipping malformed link: %s", exc)
+                            continue
+
+                except Exception as exc:
+                    logger.warning("Bumeran: term '%s' failed: %s", term, exc)
+                    continue
+        finally:
+            browser.close()
 
     return jobs
 

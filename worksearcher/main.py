@@ -9,7 +9,7 @@ from worksearcher.config import Settings
 from worksearcher.core.deduplicator import deduplicate
 from worksearcher.core.filters import filter_jobs
 from worksearcher.core.models import Job
-from worksearcher.notifier.whatsapp import send_digest
+from worksearcher.notifier.whatsapp import MAX_JOBS_PER_MESSAGE, send_digest
 from worksearcher.scrapers import (
     bumeran_scraper,
     computrabajo_scraper,
@@ -98,7 +98,7 @@ async def _run_pipeline(config: Settings) -> None:
         if unnotified:
             logger.info("Retrying notification for %d jobs from previous failed run", len(unnotified))
             if await send_digest(unnotified, config):
-                mark_jobs_notified([j.fingerprint for j in unnotified], conn)
+                mark_jobs_notified([j.fingerprint for j in unnotified[:MAX_JOBS_PER_MESSAGE]], conn)
 
         candidate_fps = [j.fingerprint for j in relevant]
         seen = get_seen_fingerprints(candidate_fps, conn)
@@ -110,7 +110,7 @@ async def _run_pipeline(config: Settings) -> None:
             logger.info("Inserted %d jobs into DB", inserted)
             sent = await send_digest(new_jobs, config)
             if sent:
-                mark_jobs_notified([j.fingerprint for j in new_jobs], conn)
+                mark_jobs_notified([j.fingerprint for j in new_jobs[:MAX_JOBS_PER_MESSAGE]], conn)
             else:
                 logger.warning("Notification failed — jobs saved in DB but WhatsApp not delivered")
         else:

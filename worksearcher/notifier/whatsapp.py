@@ -8,16 +8,16 @@ from worksearcher.core.models import Job
 logger = logging.getLogger(__name__)
 
 _META_API_URL = "https://graph.facebook.com/{version}/{phone_id}/messages"
-_MAX_JOBS_PER_MESSAGE = 10
+MAX_JOBS_PER_MESSAGE = 10
 
 
 def _build_message(jobs: list[Job]) -> str:
     lines = ["*WorkSearcher — nuevas ofertas:*\n"]
-    for job in jobs[:_MAX_JOBS_PER_MESSAGE]:
+    for job in jobs[:MAX_JOBS_PER_MESSAGE]:
         lines.append(f"• *{job.title}* @ {job.company}")
         lines.append(f"  [{job.source}] {job.url}\n")
-    if len(jobs) > _MAX_JOBS_PER_MESSAGE:
-        lines.append(f"_...y {len(jobs) - _MAX_JOBS_PER_MESSAGE} más guardadas en DB_")
+    if len(jobs) > MAX_JOBS_PER_MESSAGE:
+        lines.append(f"_...y {len(jobs) - MAX_JOBS_PER_MESSAGE} más guardadas en DB_")
     return "\n".join(lines)
 
 
