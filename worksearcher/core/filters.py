@@ -1,7 +1,7 @@
 import re
 from datetime import UTC, datetime
 
-from langdetect import detect
+from langdetect import detect_langs
 
 from worksearcher.core.models import Job
 
@@ -74,14 +74,17 @@ def is_language_allowed(job: Job, allowed_langs: list[str]) -> bool:
     """Return True if job language is in allowed_langs.
 
     Uses langdetect on first 500 chars of title+description.
-    Passes through if text is empty or detection fails (avoids silent exclusion).
+    Passes through if text is empty, detection fails, or top confidence < 0.8.
     """
     text = f"{job.title} {job.description}".strip()[:500]
     if not text:
         return True
     try:
-        lang = detect(text)
-        return lang in allowed_langs
+        langs = detect_langs(text)
+        top = langs[0]
+        if top.prob < 0.8:
+            return True  # not confident enough — let it through
+        return top.lang in allowed_langs
     except Exception:
         return True
 

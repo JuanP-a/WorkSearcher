@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from worksearcher.core.filters import (
     extract_min_years_required,
@@ -26,6 +26,13 @@ def _job(title: str, description: str = "", is_remote: bool = True) -> Job:
         is_remote=is_remote,
         description=description,
     )
+
+
+def _fake_lang(lang: str, prob: float) -> MagicMock:
+    m = MagicMock()
+    m.lang = lang
+    m.prob = prob
+    return m
 
 
 # --- is_relevant ---
@@ -274,22 +281,28 @@ def test_empty_blacklist_always_passes():
 # --- is_language_allowed ---
 
 def test_english_job_passes():
-    with patch("worksearcher.core.filters.detect", return_value="en"):
+    with patch("worksearcher.core.filters.detect_langs", return_value=[_fake_lang("en", 0.99)]):
         assert is_language_allowed(_job("Python Developer"), ["en", "es"]) is True
 
 
 def test_spanish_job_passes():
-    with patch("worksearcher.core.filters.detect", return_value="es"):
+    with patch("worksearcher.core.filters.detect_langs", return_value=[_fake_lang("es", 0.95)]):
         assert is_language_allowed(_job("Desarrollador Python"), ["en", "es"]) is True
 
 
 def test_french_job_fails():
-    with patch("worksearcher.core.filters.detect", return_value="fr"):
+    with patch("worksearcher.core.filters.detect_langs", return_value=[_fake_lang("fr", 0.92)]):
         assert is_language_allowed(_job("Développeur Python"), ["en", "es"]) is False
 
 
+def test_low_confidence_passes_language_filter():
+    # Confidence below 0.8 → pass through regardless of language
+    with patch("worksearcher.core.filters.detect_langs", return_value=[_fake_lang("fr", 0.6)]):
+        assert is_language_allowed(_job("ambiguous text"), ["en", "es"]) is True
+
+
 def test_language_passes_on_detection_error():
-    with patch("worksearcher.core.filters.detect", side_effect=Exception("undetectable")):
+    with patch("worksearcher.core.filters.detect_langs", side_effect=Exception("undetectable")):
         assert is_language_allowed(_job("???"), ["en", "es"]) is True
 
 
@@ -339,7 +352,10 @@ def test_filter_jobs_applies_blacklist():
 
 
 def test_filter_jobs_applies_language_filter():
-    with patch("worksearcher.core.filters.detect", side_effect=["en", "fr"]):
+    with patch("worksearcher.core.filters.detect_langs", side_effect=[
+        [_fake_lang("en", 0.99)],
+        [_fake_lang("fr", 0.95)],
+    ]):
         jobs = [_job("Python Developer"), _job("Développeur Python")]
         result = filter_jobs(jobs, ["python"], allowed_languages=["en", "es"])
     assert len(result) == 1
