@@ -21,7 +21,13 @@ apt-get install -y curl python3-pip
 
 echo "=== uv ==="
 if ! command -v uv &>/dev/null; then
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    UV_VERSION="0.11.24"
+    UV_INSTALLER_SHA256="b3c113bcb8b5f361805bc2283cb1bcc8f3e07b5f0387a12e4f6e71281f7ec120"
+    curl -LsSf "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-installer.sh" \
+        -o /tmp/uv-installer.sh
+    echo "${UV_INSTALLER_SHA256}  /tmp/uv-installer.sh" | sha256sum -c -
+    sh /tmp/uv-installer.sh
+    rm /tmp/uv-installer.sh
     export PATH="$HOME/.local/bin:$PATH"
 fi
 
