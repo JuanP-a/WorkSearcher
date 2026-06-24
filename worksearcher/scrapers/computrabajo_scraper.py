@@ -22,7 +22,7 @@ def _blocking_scrape(config: Settings) -> list[Job]:
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
-            args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
+            args=["--disable-blink-features=AutomationControlled", "--disable-gpu", "--disable-dev-shm-usage"],
         )
         context = browser.new_context(
             user_agent=(
