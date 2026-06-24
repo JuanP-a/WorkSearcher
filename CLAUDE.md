@@ -23,6 +23,8 @@ Buscador de empleos automatizado para un ingeniero en sistemas (dev + cibersegur
 | Glassdoor | jobspy | Global |
 | RemoteOK | API JSON pública | Global remoto |
 | Remotive | API JSON pública | Global remoto |
+| Himalayas | API JSON pública | Global remoto |
+| HackerNews "Who's Hiring" | Algolia API | Global dev |
 | Computrabajo | playwright scraping | LatAm |
 | Bumeran | playwright scraping | LatAm |
 | CyberSecJobs | httpx + BS4 | Global cyber |
@@ -63,7 +65,7 @@ Este proyecto usa Spec-Driven Development. Antes de implementar cualquier featur
 specs/              ← specs de features (crear aquí ANTES de implementar)
 docs/               ← documentación técnica y arquitectura
   superpowers/
-    specs/          ← design docs generados en sesiones de brainstorming
+    plans/          ← planes de implementación generados por el skill writing-plans
 worksearcher/       ← código fuente
   scrapers/         ← un scraper por plataforma
   core/             ← lógica pura (modelos, filtros, deduplicación)

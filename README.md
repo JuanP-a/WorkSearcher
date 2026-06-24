@@ -1,6 +1,6 @@
 # WorkSearcher
 
-Buscador de trabajo automatizado. Scraping de 9 plataformas, filtrado por keywords (dev + cybersecurity + automation), notificación vía WhatsApp.
+Buscador de trabajo automatizado. Scraping de 11 plataformas, filtrado por keywords + fecha + blacklist + idioma + salario, notificación vía WhatsApp.
 
 ## Setup
 
@@ -22,6 +22,10 @@ uv run python -m worksearcher run
 | `SEARCH_KEYWORDS` | 23 términos | Filtro post-scraping aplicado a todos los scrapers |
 | `JOBSPY_SEARCH_TERMS` | 5 términos | Query enviada a LinkedIn/Indeed/Glassdoor (máx 5) |
 | `MAX_YEARS_EXPERIENCE` | `3` | Jobs que piden más años son descartados |
+| `MAX_JOB_AGE_DAYS` | `30` | Jobs con `posted_at` mayor a N días son descartados |
+| `BLACKLIST_KEYWORDS` | 18 términos | Keywords en título/descripción que descartan el job |
+| `FILTER_LANGUAGES` | `en,es` | Idiomas permitidos (ISO 639-1, comma-separated) |
+| `MIN_SALARY_USD_MONTHLY` | vacío | Salario mínimo mensual en USD; vacío = sin filtro |
 | `SCRAPE_INTERVAL_HOURS` | `4` | Referencia para configurar cron |
 
 ## Cron (VPS)
