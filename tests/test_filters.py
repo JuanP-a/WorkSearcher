@@ -1,6 +1,13 @@
+from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
+
 from worksearcher.core.filters import (
     extract_min_years_required,
     filter_jobs,
+    has_minimum_salary,
+    is_language_allowed,
+    is_not_blacklisted,
+    is_recent,
     is_relevant,
     meets_experience_requirement,
 )
@@ -198,19 +205,8 @@ def test_fake_settings_has_filter_fields(fake_settings):
     assert hasattr(fake_settings, "MIN_SALARY_USD_MONTHLY")
 
 
-from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
-
-from worksearcher.core.filters import (
-    has_minimum_salary,
-    is_language_allowed,
-    is_not_blacklisted,
-    is_recent,
-)
-
-
 def _job_with_date(days_ago: int) -> Job:
-    posted = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    posted = datetime.now(UTC) - timedelta(days=days_ago)
     return Job(
         title="Python Developer",
         company="Co",

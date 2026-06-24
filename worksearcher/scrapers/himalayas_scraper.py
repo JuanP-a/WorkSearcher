@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -34,7 +34,7 @@ async def scrape(config: Settings) -> list[Job]:
 
                 pub_date = item.get("pubDate")
                 posted_at = (
-                    datetime.fromtimestamp(pub_date, tz=timezone.utc) if pub_date else None
+                    datetime.fromtimestamp(pub_date, tz=UTC) if pub_date else None
                 )
 
                 currency = item.get("currency", "") or ""

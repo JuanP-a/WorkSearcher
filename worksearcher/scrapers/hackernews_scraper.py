@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 from bs4 import BeautifulSoup
@@ -70,7 +70,7 @@ async def scrape(config: Settings) -> list[Job]:
                 job_id = child.get("id", "")
                 created_at_i = child.get("created_at_i")
                 posted_at = (
-                    datetime.fromtimestamp(created_at_i, tz=timezone.utc)
+                    datetime.fromtimestamp(created_at_i, tz=UTC)
                     if created_at_i
                     else None
                 )

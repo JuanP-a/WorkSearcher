@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -28,7 +28,7 @@ async def scrape(config: Settings) -> list[Job]:
             try:
                 epoch = item.get("epoch")
                 posted_at = (
-                    datetime.fromtimestamp(int(epoch), tz=timezone.utc) if epoch else None
+                    datetime.fromtimestamp(int(epoch), tz=UTC) if epoch else None
                 )
 
                 salary_min = item.get("salary_min")

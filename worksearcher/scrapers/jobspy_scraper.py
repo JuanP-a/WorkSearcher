@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from worksearcher.config import Settings
 from worksearcher.core.models import Job, JobSource
@@ -43,7 +43,7 @@ async def scrape(config: Settings) -> list[Job]:
                                 date_posted.year,
                                 date_posted.month,
                                 date_posted.day,
-                                tzinfo=timezone.utc,
+                                tzinfo=UTC,
                             )
                     except Exception:
                         posted_at = None

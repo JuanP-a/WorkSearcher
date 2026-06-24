@@ -4,6 +4,8 @@ No HTTP calls, no playwright. Tests the parsing logic extracted
 from each scraper's response-handling code.
 """
 
+from datetime import UTC, datetime
+
 import httpx
 import pytest
 import respx
@@ -455,8 +457,6 @@ async def test_hackernews_returns_empty_on_http_error(fake_settings):
 
 # --- posted_at population tests ---
 
-from datetime import datetime, timezone
-
 # --- Himalayas: posted_at ---
 
 HIMALAYAS_FIXTURE_WITH_DATE = {
@@ -482,7 +482,7 @@ async def test_himalayas_populates_posted_at(fake_settings):
     )
     jobs = await himalayas_scrape(fake_settings)
     assert jobs[0].posted_at is not None
-    assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=timezone.utc)
+    assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=UTC)
 
 
 # --- RemoteOK: posted_at ---
@@ -507,7 +507,7 @@ async def test_remoteok_populates_posted_at(fake_settings):
     )
     jobs = await remoteok_scrape(fake_settings)
     assert jobs[0].posted_at is not None
-    assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=timezone.utc)
+    assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=UTC)
 
 
 # --- HackerNews: posted_at ---
@@ -538,7 +538,7 @@ async def test_hackernews_populates_posted_at(fake_settings):
     )
     jobs = await hn_scrape(fake_settings)
     assert jobs[0].posted_at is not None
-    assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=timezone.utc)
+    assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=UTC)
 
 
 # --- Himalayas: min_salary_usd_monthly ---
