@@ -1,5 +1,6 @@
 import logging
 from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 
 import httpx
 
@@ -33,9 +34,16 @@ async def scrape(config: Settings) -> list[Job]:
                 url = item.get("applicationLink", "") or item.get("guid", "")
 
                 pub_date = item.get("pubDate")
-                posted_at = (
-                    datetime.fromtimestamp(pub_date, tz=UTC) if pub_date else None
-                )
+                posted_at = None
+                if pub_date is not None:
+                    try:
+                        # API returns RFC 2822 strings; fall back to Unix int for test fixtures
+                        if isinstance(pub_date, (int, float)):
+                            posted_at = datetime.fromtimestamp(pub_date, tz=UTC)
+                        else:
+                            posted_at = parsedate_to_datetime(str(pub_date))
+                    except Exception:
+                        pass
 
                 currency = item.get("currency", "") or ""
                 min_salary_raw = item.get("minSalary")
