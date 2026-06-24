@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-import pytest
+from langdetect import DetectorFactory
 
 from worksearcher.core.filters import (
     extract_min_years_required,
@@ -392,6 +392,4 @@ def test_langdetect_seed_is_set():
     # Fix b36fe38: seed must be 0 so language filtering produces identical results
     # across runs. Without the seed, langdetect is non-deterministic and jobs may
     # be accepted or rejected inconsistently.
-    from langdetect import DetectorFactory
-    import worksearcher.core.filters  # noqa: F401 — ensure module-level seed runs
     assert DetectorFactory.seed == 0

@@ -3,7 +3,13 @@ import pytest
 import respx
 
 from worksearcher.core.models import Job, JobSource
-from worksearcher.notifier.whatsapp import MAX_JOBS_PER_MESSAGE as _MAX_JOBS_PER_MESSAGE, _build_message, send_digest
+from worksearcher.notifier.whatsapp import (
+    MAX_JOBS_PER_MESSAGE as _MAX_JOBS_PER_MESSAGE,
+)
+from worksearcher.notifier.whatsapp import (
+    _build_message,
+    send_digest,
+)
 
 
 def _job(n: int, source: JobSource = JobSource.REMOTEOK) -> Job:
