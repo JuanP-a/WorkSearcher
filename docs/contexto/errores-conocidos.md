@@ -43,10 +43,10 @@ El pipeline no arranca — no falla silenciosamente.
 No detecta: "remote-friendly", "fully distributed", "async-first", "work from anywhere".
 Jobs con esas frases se marcan `is_remote=False` y el pipeline los descarta en `is_relevant`.
 
-### `worksearcher.db` se crea en la raíz del repo
-La ruta está hardcodeada en `database.py` como `Path(__file__).parent.parent.parent / "worksearcher.db"`.
-En VPS, si el repo está en `/app`, la BD queda en `/app/worksearcher.db` (junto al código).
-`git clean -fd` destruiría el historial de dedup. (DEVOPS-7 — pendiente mover a `/var/lib/worksearcher/`)
+### `worksearcher.db` — ubicación configurable via `DB_PATH`
+La ruta por defecto (`worksearcher.db`) es relativa al cwd. En VPS se configura vía `.env`:
+`DB_PATH=/var/lib/worksearcher/worksearcher.db`. `deploy/setup.sh` crea el directorio con el owner correcto.
+En dev local, la BD queda en la raíz del repo (comportamiento anterior, sin cambio).
 
 ### Himalayas solo procesa salarios en USD
 Si `currency != "USD"`, `min_salary_usd_monthly` queda en `None` aunque el salario esté disponible.
@@ -59,15 +59,9 @@ un `logger.debug` y deja `min_salary_usd_monthly = None`. El job pasa el filtro 
 
 ---
 
-## Deuda técnica pendiente (requiere VPS)
+## Deuda técnica pendiente
 
-Ver `docs/deuda-tecnica.md` para detalle completo. Resumen:
-
-| ID | Problema | Impacto |
-|----|---------|---------|
-| DEVOPS-2 | Log sin rotación (`>> /var/log/worksearcher.log`) | Disco lleno en semanas |
-| DEVOPS-3 | `playwright install-deps` no documentado en setup | Scrapers LatAm fallan en Ubuntu limpio |
-| DEVOPS-7 | `worksearcher.db` en raíz del repo | `git clean` destruye historial de dedup |
+Ver `docs/deuda-tecnica.md` para detalle completo. Sin items pendientes — todos los issues de VPS resueltos.
 
 ---
 

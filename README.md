@@ -23,8 +23,8 @@ cd /opt/worksearcher
 cp .env.example .env
 # Editar .env: META_* secrets + DB_PATH=/var/lib/worksearcher/worksearcher.db
 
-sudo bash deploy/setup.sh   # instala deps, playwright, logrotate, crea /var/lib/worksearcher/
-crontab -e                  # pegar línea de crontab.example
+sudo bash deploy/setup.sh         # instala deps, playwright, logrotate, uv en /usr/local/bin
+sudo -u worksearcher crontab -e   # pegar línea de crontab.example
 ```
 
 `deploy/setup.sh` instala:

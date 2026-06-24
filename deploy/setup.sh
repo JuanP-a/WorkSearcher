@@ -28,8 +28,11 @@ if ! command -v uv &>/dev/null; then
     echo "${UV_INSTALLER_SHA256}  /tmp/uv-installer.sh" | sha256sum -c -
     sh /tmp/uv-installer.sh
     rm /tmp/uv-installer.sh
-    export PATH="$HOME/.local/bin:$PATH"
+    # Install to system-wide path so all users (including worksearcher in cron) can reach it
+    install -m 755 "$HOME/.local/bin/uv" /usr/local/bin/uv
 fi
+# Ensure uv is reachable for the rest of this script
+export PATH="/usr/local/bin:$PATH"
 
 echo "=== Python dependencies ==="
 cd "$APP_DIR"

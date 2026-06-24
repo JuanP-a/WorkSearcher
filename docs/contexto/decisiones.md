@@ -78,11 +78,11 @@ Error detectado en code review (originalmente se guardaba sin dividir → valore
 
 ---
 
-## worksearcher.db en raíz del repo (deuda pendiente)
+## DB_PATH configurable via `.env`
 
-**Decisión actual:** DB vive en `worksearcher/storage/../../../worksearcher.db` (raíz del repo).
-**Por qué no se cambió:** Funciona en dev; cambio requiere VPS disponible para coordinar migración.
-**Pendiente (DEVOPS-7):** Mover a `/var/lib/worksearcher/` en VPS.
+**Decisión:** `DB_PATH: str = "worksearcher.db"` en `Settings`. Default relativo para dev local; en VPS se sobreescribe con ruta absoluta.
+**Porqué:** Mantiene compatibilidad con dev local sin cambios, permite mover la BD fuera del repo en VPS.
+**VPS:** `DB_PATH=/var/lib/worksearcher/worksearcher.db` en `.env`. `deploy/setup.sh` crea el directorio con `chown worksearcher`.
 
 ---
 
@@ -91,6 +91,23 @@ Error detectado en code review (originalmente se guardaba sin dividir → valore
 **Decisión:** `is_remote = "REMOTE" in plain_text.upper()` (substring en el comentario parseado).
 **Porqué:** Hardcodear `is_remote=True` hacía que posts de ONSITE pasaran el filtro.
 **Limitación conocida:** No detecta "remote-friendly", "hybrid remote", etc. — aceptado por simplicidad.
+
+---
+
+## Hardening de seguridad pre-VPS
+
+**Decisión:** Bloque de fixes aplicados antes del primer deploy, identificados por revisión de seguridad automatizada.
+
+| Fix | Archivo | Razón |
+|-----|---------|-------|
+| Quitar `--no-sandbox` de Chromium | `computrabajo_scraper.py` | Con proceso root, un exploit de renderer = root en VPS. Reemplazado por `--disable-gpu --disable-dev-shm-usage` |
+| Usuario dedicado `worksearcher` | `deploy/setup.sh` | Principio de menor privilegio; activa el sandbox de Chromium |
+| uv a `/usr/local/bin/uv` | `deploy/setup.sh` | `worksearcher` no tiene home → `$HOME/.local/bin` no existe en su PATH de cron |
+| SHA256 en installer de uv | `deploy/setup.sh` | `curl \| sh` ejecuta código remoto como root sin verificar integridad |
+| `requirements.hashes.lock` + `--require-hashes` | `deploy/setup.sh` | pip verifica hashes de los 38 paquetes PyPI en install; previene tampering |
+| `field_validator` en `Job.url` | `models.py` | Rechaza `javascript:`, `data:`, `ftp:` de páginas scrapeadas antes de entrar a BD o WhatsApp |
+
+**Por qué `field_validator` y no `AnyHttpUrl`:** `AnyHttpUrl` cambia `url` de `str` a objeto Pydantic, rompiendo `.startswith()`, `in`, y `==` en tests y scrapers. El validator logra el mismo objetivo de seguridad sin cambiar el tipo.
 
 ---
 
