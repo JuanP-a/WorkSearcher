@@ -9,7 +9,7 @@ cp .env.example .env
 # Rellenar .env con META_PHONE_NUMBER_ID, META_ACCESS_TOKEN, META_RECIPIENT_PHONE
 
 uv venv
-uv pip install -r requirements.txt
+uv pip install -r requirements.txt          # deps sin hashes — solo para desarrollo local
 uv run playwright install chromium
 
 uv run python -m worksearcher run
@@ -29,10 +29,11 @@ sudo -u worksearcher crontab -e   # pegar línea de crontab.example
 
 `deploy/setup.sh` instala:
 - dependencias del sistema
-- uv + paquetes Python (desde `requirements.lock`)
+- uv `0.11.24` en `/usr/local/bin/uv` (accesible por cron sin PATH)
+- paquetes Python desde `requirements.hashes.lock` (`--require-hashes`) + jobspy desde git SHA pinneado
 - Chromium + `playwright install-deps chromium` (libs de sistema para Playwright)
 - `/etc/logrotate.d/worksearcher` (rotación diaria, 14 días, comprimido)
-- directorio `/var/lib/worksearcher/` para la DB
+- directorio `/var/lib/worksearcher/` con permisos para el usuario `worksearcher`
 
 ## Variables de entorno relevantes
 

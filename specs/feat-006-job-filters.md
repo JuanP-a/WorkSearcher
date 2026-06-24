@@ -1,3 +1,14 @@
+---
+spec_id: FEAT-006
+title: "Job Filters — fecha, blacklist, idioma, salario mínimo"
+version: 1.0
+status: implemented
+priority: high
+created: 2026-06-23
+author: JuanP-a
+complexity: M
+---
+
 # Spec: Job Filters — fecha, blacklist, idioma, salario mínimo
 
 ## Outcomes
@@ -36,7 +47,7 @@
 - Confidence mínimo de `langdetect` para aplicar el filtro: `0.8` (hardcoded, no configurable)
 - Jobs sin `posted_at` → pasan el filtro de fecha siempre
 - Jobs sin `min_salary_usd_monthly` → pasan el filtro de salario siempre
-- `langdetect` es no-determinista por diseño; no afecta tests (mockear en tests)
+- `langdetect` es no-determinista por diseño; se fija con `DetectorFactory.seed = 0` en `filters.py`; tests mockean `detect_langs`
 - La detección de idioma se aplica sobre `(title + " " + description)[:500]` para limitar costo
 
 ### Blacklist defaults
@@ -100,7 +111,7 @@ def filter_languages_list(self) -> list[str]:
 - Commit: `feat: add date/blacklist/language/salary filters to filter_jobs`
 
 ### T4: Scrapers — poblar `posted_at`
-- **Himalayas**: mapear `pubDate` (Unix int) → `datetime`
+- **Himalayas**: mapear `pubDate` (RFC 2822 string; fallback Unix int) → `datetime` con `parsedate_to_datetime`
 - **RemoteOK**: mapear `epoch` (Unix int) → `datetime`
 - **HackerNews**: mapear `created_at_i` (Unix int) → `datetime` en cada comment child
 - **jobspy**: mapear `date_posted` (columna del dataframe) → `datetime`

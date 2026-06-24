@@ -15,12 +15,12 @@ Pipeline central que orquesta scrapers, filtra ofertas, deduplica, persiste en S
 
 ## Outcomes
 
-- [ ] El pipeline extrae ofertas de al menos 3 plataformas (LinkedIn, Indeed, RemoteOK)
-- [ ] Solo pasan ofertas que contengan al menos 1 keyword de dev o cyber Y sean remotas
-- [ ] Ofertas ya vistas (mismo fingerprint) no generan notificación ni se reinsertan
-- [ ] Al finalizar, si hay ofertas nuevas, se envía digest WhatsApp con título, empresa y URL
-- [ ] El pipeline es invocable desde CLI: `python -m worksearcher run`
-- [ ] El pipeline corre sin errores en VPS Ubuntu 22.04 con cron cada 4h
+- [x] El pipeline extrae ofertas de al menos 3 plataformas (LinkedIn, Indeed, RemoteOK)
+- [x] Solo pasan ofertas que contengan al menos 1 keyword de dev o cyber Y sean remotas
+- [x] Ofertas ya vistas (mismo fingerprint) no generan notificación ni se reinsertan
+- [x] Al finalizar, si hay ofertas nuevas, se envía digest WhatsApp con título, empresa y URL
+- [x] El pipeline es invocable desde CLI: `python -m worksearcher run`
+- [x] El pipeline corre sin errores en VPS Ubuntu 22.04 con cron cada 4h
 
 ## Scope Boundaries
 
