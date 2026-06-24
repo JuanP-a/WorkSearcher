@@ -40,6 +40,9 @@ class Settings(BaseSettings):
 
     FILTER_LANGUAGES: str = "en,es"
 
+    # Path to SQLite DB — override on VPS to keep DB outside repo
+    DB_PATH: str = "worksearcher.db"
+
     @field_validator("MIN_SALARY_USD_MONTHLY", mode="before")
     @classmethod
     def allow_empty_salary(cls, v: object) -> object:

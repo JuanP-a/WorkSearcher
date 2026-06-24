@@ -49,7 +49,7 @@ async def test_pipeline_saves_new_jobs(tmp_path, monkeypatch, fake_settings):
 
     jobs = [_job(1), _job(2)]
     monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper(jobs)])
-    monkeypatch.setattr("worksearcher.main.get_connection", lambda: sqlite3.connect(db_path))
+    monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     notified = []
 
@@ -81,7 +81,7 @@ async def test_pipeline_skips_notification_when_no_new_jobs(tmp_path, monkeypatc
     conn.close()
 
     monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper(existing)])
-    monkeypatch.setattr("worksearcher.main.get_connection", lambda: sqlite3.connect(db_path))
+    monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     notified = []
 
@@ -108,7 +108,7 @@ async def test_pipeline_tolerates_scraper_failure(tmp_path, monkeypatch, fake_se
         _make_failing_scraper(),
         _make_fake_scraper(good_jobs),
     ])
-    monkeypatch.setattr("worksearcher.main.get_connection", lambda: sqlite3.connect(db_path))
+    monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     async def fake_send_digest(j, config):
         return True
@@ -139,7 +139,7 @@ async def test_pipeline_filters_irrelevant_jobs(tmp_path, monkeypatch, fake_sett
         _job(3, title="Backend Engineer"),
     ]
     monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper(jobs)])
-    monkeypatch.setattr("worksearcher.main.get_connection", lambda: sqlite3.connect(db_path))
+    monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     notified = []
 
@@ -165,7 +165,7 @@ async def test_pipeline_logs_warning_when_notification_fails(tmp_path, monkeypat
     conn.close()
 
     monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper([_job(1)])])
-    monkeypatch.setattr("worksearcher.main.get_connection", lambda: sqlite3.connect(db_path))
+    monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     async def fake_send_digest(j, config):
         return False
@@ -202,7 +202,7 @@ async def test_pipeline_passes_all_filter_params_from_config(tmp_path, monkeypat
 
     monkeypatch.setattr("worksearcher.main.filter_jobs", spy_filter_jobs)
     monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper([])])
-    monkeypatch.setattr("worksearcher.main.get_connection", lambda: sqlite3.connect(db_path))
+    monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     async def fake_send_digest(j, config):
         return True

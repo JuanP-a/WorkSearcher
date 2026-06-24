@@ -1,3 +1,5 @@
 # WorkSearcher — run every 4 hours
-# Install on VPS: crontab -e, paste this line
-0 */4 * * * cd /path/to/worksearcher && /path/to/venv/bin/python -m worksearcher run >> /var/log/worksearcher.log 2>&1
+# Install as the worksearcher service user (NOT root):
+#   sudo -u worksearcher crontab -e
+0 */4 * * * cd /opt/worksearcher && uv run python -m worksearcher run >> /var/log/worksearcher.log 2>&1
+# Log rotation installed by setup.sh at /etc/logrotate.d/worksearcher

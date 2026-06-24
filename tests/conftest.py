@@ -14,6 +14,7 @@ class FakeSettings:
     blacklist_list: list = []
     filter_languages_list: list = ["en", "es"]
     MIN_SALARY_USD_MONTHLY = None
+    DB_PATH = "worksearcher.db"
 
 
 @pytest.fixture
