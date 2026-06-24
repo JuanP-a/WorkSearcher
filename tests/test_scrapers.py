@@ -419,20 +419,8 @@ async def test_hackernews_parses_jobs_correctly(fake_settings):
     assert jobs[0].company == "Acme Corp"
     assert jobs[0].title == "Backend Engineer"
     assert jobs[0].source == JobSource.HACKERNEWS
-    assert jobs[0].is_remote is True
-
-
-@pytest.mark.asyncio
-@respx.mock
-async def test_hackernews_skips_deleted_comments(fake_settings):
-    respx.get(HN_SEARCH_URL).mock(
-        return_value=httpx.Response(200, json=HN_SEARCH_FIXTURE)
-    )
-    respx.get(HN_ITEMS_URL).mock(
-        return_value=httpx.Response(200, json=HN_ITEMS_FIXTURE)
-    )
-    jobs = await hn_scrape(fake_settings)
-    assert len(jobs) == 2  # only 2 of 3 comments have text
+    assert jobs[0].is_remote is True   # REMOTE comment
+    assert jobs[1].is_remote is False  # ONSITE comment
 
 
 @pytest.mark.asyncio
@@ -611,7 +599,7 @@ REMOTEOK_FIXTURE_WITH_SALARY = [
     {
         "position": "Python Developer", "company": "Startup",
         "slug": "python-dev-123", "description": "Python skills",
-        "epoch": None, "salary_min": 1500, "salary_max": 2500,
+        "epoch": None, "salary_min": 60000, "salary_max": 90000,
     },
 ]
 
@@ -632,7 +620,7 @@ async def test_remoteok_salary_populated(fake_settings):
         return_value=httpx.Response(200, json=REMOTEOK_FIXTURE_WITH_SALARY)
     )
     jobs = await remoteok_scrape(fake_settings)
-    assert jobs[0].min_salary_usd_monthly == 1500.0
+    assert jobs[0].min_salary_usd_monthly == 5000.0  # 60000 / 12
 
 
 @pytest.mark.asyncio

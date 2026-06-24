@@ -33,7 +33,7 @@ async def scrape(config: Settings) -> list[Job]:
 
                 salary_min = item.get("salary_min")
                 min_salary_usd_monthly = (
-                    float(salary_min) if salary_min and float(salary_min) > 0 else None
+                    float(salary_min) / 12 if salary_min and float(salary_min) > 0 else None
                 )
 
                 job = Job(

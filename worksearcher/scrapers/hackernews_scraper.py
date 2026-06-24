@@ -74,14 +74,16 @@ async def scrape(config: Settings) -> list[Job]:
                     if created_at_i
                     else None
                 )
+                plain_text = BeautifulSoup(text, "html.parser").get_text()
+                is_remote = "REMOTE" in plain_text.upper()
                 job = Job(
                     title=title,
                     company=company,
-                    location="Remote",
+                    location="Remote" if is_remote else "On-site",
                     url=f"https://news.ycombinator.com/item?id={job_id}",
                     source=JobSource.HACKERNEWS,
-                    is_remote=True,
-                    description=BeautifulSoup(text, "html.parser").get_text(),
+                    is_remote=is_remote,
+                    description=plain_text,
                     posted_at=posted_at,
                 )
                 jobs.append(job)
