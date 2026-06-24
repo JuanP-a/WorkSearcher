@@ -1,4 +1,5 @@
 # WorkSearcher — run every 4 hours
+MAILTO=""
 # Install as the worksearcher service user (NOT root):
 #   sudo -u worksearcher crontab -e
 #
