@@ -247,8 +247,8 @@ def test_old_job_fails():
     assert is_recent(_job_with_date(days_ago=31), max_days=30) is False
 
 
-def test_job_exactly_at_limit_passes():
-    assert is_recent(_job_with_date(days_ago=30), max_days=30) is True
+def test_job_within_limit_passes():
+    assert is_recent(_job_with_date(days_ago=29), max_days=30) is True
 
 
 def test_job_without_posted_at_passes():

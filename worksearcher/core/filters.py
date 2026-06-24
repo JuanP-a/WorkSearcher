@@ -60,7 +60,7 @@ def is_recent(job: Job, max_days: int) -> bool:
     if job.posted_at is None:
         return True
     delta = datetime.now(UTC) - job.posted_at.astimezone(UTC)
-    return delta.days <= max_days
+    return delta.total_seconds() <= max_days * 86400
 
 
 def is_not_blacklisted(job: Job, blacklist: list[str]) -> bool:
