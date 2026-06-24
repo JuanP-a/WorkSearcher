@@ -176,3 +176,43 @@ async def test_pipeline_logs_warning_when_notification_fails(tmp_path, monkeypat
         await _run_pipeline(fake_settings)
 
     assert any("Notification failed" in r.message for r in caplog.records)
+
+
+def test_scrapers_list_includes_new_platforms():
+    from worksearcher.main import _SCRAPERS
+    scraper_modules = {s.__module__ for s in _SCRAPERS}
+    assert "worksearcher.scrapers.himalayas_scraper" in scraper_modules
+    assert "worksearcher.scrapers.hackernews_scraper" in scraper_modules
+
+
+@pytest.mark.asyncio
+async def test_pipeline_passes_all_filter_params_from_config(tmp_path, monkeypatch, fake_settings):
+    """filter_jobs must receive all four new config params from _run_pipeline."""
+    db_path = tmp_path / "test.db"
+    conn = sqlite3.connect(db_path)
+    init_db(conn)
+    conn.close()
+
+    from worksearcher.core.filters import filter_jobs as real_filter_jobs
+    captured_kwargs = {}
+
+    def spy_filter_jobs(jobs, keywords, **kwargs):
+        captured_kwargs.update(kwargs)
+        return real_filter_jobs(jobs, keywords, **kwargs)
+
+    monkeypatch.setattr("worksearcher.main.filter_jobs", spy_filter_jobs)
+    monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper([])])
+    monkeypatch.setattr("worksearcher.main.get_connection", lambda: sqlite3.connect(db_path))
+
+    async def fake_send_digest(j, config):
+        return True
+
+    monkeypatch.setattr("worksearcher.main.send_digest", fake_send_digest)
+
+    await _run_pipeline(fake_settings)
+
+    assert captured_kwargs.get("max_years_experience") == fake_settings.MAX_YEARS_EXPERIENCE
+    assert captured_kwargs.get("max_job_age_days") == fake_settings.MAX_JOB_AGE_DAYS
+    assert captured_kwargs.get("blacklist") == fake_settings.blacklist_list
+    assert captured_kwargs.get("allowed_languages") == fake_settings.filter_languages_list
+    assert captured_kwargs.get("min_salary_usd_monthly") == fake_settings.MIN_SALARY_USD_MONTHLY

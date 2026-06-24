@@ -15,6 +15,8 @@ class JobSource(StrEnum):
     CYBERSECJOBS = "cybersecjobs"
     COMPUTRABAJO = "computrabajo"
     BUMERAN = "bumeran"
+    HIMALAYAS = "himalayas"
+    HACKERNEWS = "hackernews"
 
 
 class Job(BaseModel):
@@ -26,6 +28,7 @@ class Job(BaseModel):
     is_remote: bool
     description: str = ""
     posted_at: datetime | None = None
+    min_salary_usd_monthly: float | None = None
 
     @computed_field
     @property

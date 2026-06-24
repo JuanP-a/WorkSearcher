@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime
 
 import httpx
 
@@ -25,6 +26,16 @@ async def scrape(config: Settings) -> list[Job]:
         jobs = []
         for item in listings:
             try:
+                epoch = item.get("epoch")
+                posted_at = (
+                    datetime.fromtimestamp(int(epoch), tz=UTC) if epoch else None
+                )
+
+                salary_min = item.get("salary_min")
+                min_salary_usd_monthly = (
+                    float(salary_min) / 12 if salary_min and float(salary_min) > 0 else None
+                )
+
                 job = Job(
                     title=item.get("position", ""),
                     company=item.get("company", ""),
@@ -33,6 +44,8 @@ async def scrape(config: Settings) -> list[Job]:
                     source=JobSource.REMOTEOK,
                     is_remote=True,
                     description=item.get("description", ""),
+                    posted_at=posted_at,
+                    min_salary_usd_monthly=min_salary_usd_monthly,
                 )
                 jobs.append(job)
             except Exception as exc:

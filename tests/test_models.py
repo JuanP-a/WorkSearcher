@@ -49,7 +49,7 @@ def test_fingerprint_is_case_insensitive():
 
 
 def test_job_source_enum_covers_all_platforms():
-    # All 9 target platforms must be represented
+    # All 11 target platforms must be represented
     assert JobSource.LINKEDIN == "linkedin"
     assert JobSource.INDEED == "indeed"
     assert JobSource.GLASSDOOR == "glassdoor"
@@ -59,6 +59,8 @@ def test_job_source_enum_covers_all_platforms():
     assert JobSource.CYBERSECJOBS == "cybersecjobs"
     assert JobSource.COMPUTRABAJO == "computrabajo"
     assert JobSource.BUMERAN == "bumeran"
+    assert JobSource.HIMALAYAS == "himalayas"
+    assert JobSource.HACKERNEWS == "hackernews"
 
 
 def test_fingerprint_differs_by_company():
@@ -82,3 +84,28 @@ def test_keywords_soc_matches_substring():
     social_job = Job(title="Social Media Manager", company="Co", location="Remote",
                      url="https://example.com/2", source=JobSource.REMOTEOK, is_remote=True)
     assert is_relevant(social_job, ["soc"]) is True  # known behaviour, not a bug
+
+
+def test_job_has_min_salary_field():
+    job = Job(
+        title="Dev",
+        company="Co",
+        location="Remote",
+        url="https://example.com/1",
+        source=JobSource.REMOTEOK,
+        is_remote=True,
+    )
+    assert job.min_salary_usd_monthly is None
+
+
+def test_job_accepts_salary_value():
+    job = Job(
+        title="Dev",
+        company="Co",
+        location="Remote",
+        url="https://example.com/1",
+        source=JobSource.REMOTEOK,
+        is_remote=True,
+        min_salary_usd_monthly=1500.0,
+    )
+    assert job.min_salary_usd_monthly == 1500.0

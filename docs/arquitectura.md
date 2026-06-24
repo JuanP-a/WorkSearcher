@@ -38,11 +38,16 @@ Automated job search tool for a computer systems engineer (dev + cybersecurity) 
 | `scrapers/jobspy_scraper.py` | LinkedIn, Indeed, Glassdoor via jobspy |
 | `scrapers/remoteok_scraper.py` | RemoteOK public JSON API |
 | `scrapers/remotive_scraper.py` | Remotive public JSON API |
+| `scrapers/wwr_scraper.py` | We Work Remotely via httpx + BS4 |
 | `scrapers/computrabajo_scraper.py` | Computrabajo via playwright |
+| `scrapers/bumeran_scraper.py` | Bumeran via playwright |
 | `scrapers/cybersecjobs_scraper.py` | CyberSecJobs via httpx + BS4 |
+| `scrapers/himalayas_scraper.py` | Himalayas public JSON API |
+| `scrapers/hackernews_scraper.py` | HackerNews "Who's Hiring" via Algolia API |
 | `core/models.py` | Pydantic Job model |
-| `core/filters.py` | Keyword matching, remote check (pure) |
+| `core/filters.py` | Keyword, experience, date, blacklist, language, salary filters (pure) |
 | `core/deduplicator.py` | hash(title + company + url) |
+| `core/utils.py` | Shared utilities (slugify) |
 | `storage/database.py` | SQLite CRUD + ON CONFLICT DO NOTHING |
 | `notifier/whatsapp.py` | Meta Cloud API sender |
 | `config.py` | Pydantic Settings from .env |
@@ -56,19 +61,26 @@ class Job(BaseModel):
     company: str
     location: str
     url: str
-    source: str          # "linkedin" | "remoteok" | "computrabajo" | ...
+    source: JobSource       # enum: "linkedin" | "remoteok" | "himalayas" | ...
     is_remote: bool
-    description: str
-    posted_at: datetime | None
-    fingerprint: str     # hash(title + company + url) — dedup key
+    description: str = ""
+    posted_at: datetime | None = None
+    min_salary_usd_monthly: float | None = None   # USD/month; None = not available
+    fingerprint: str        # computed: sha256(title + company + url) — dedup key
 ```
 
 ## Pipeline Flow
 
 1. cron triggers `python -m worksearcher run`
-2. All scrapers run concurrently (`asyncio.gather`)
+2. All scrapers run concurrently (`asyncio.gather`, 120s timeout per scraper)
 3. Results merged into flat list of `Job` objects
-4. Filter: keywords match (dev OR cyber) AND remote=True
+4. Filter pipeline (all configurable via `.env`):
+   - Keywords match (dev OR cyber OR automation) AND `is_remote=True`
+   - Experience cap (`MAX_YEARS_EXPERIENCE`, default 3 years)
+   - Date filter: discard if `posted_at` > `MAX_JOB_AGE_DAYS` days old (default 30)
+   - Blacklist: discard if title/description contains any `BLACKLIST_KEYWORDS` term
+   - Language: discard if `langdetect` detects language not in `FILTER_LANGUAGES` with ≥0.8 confidence
+   - Salary floor: discard if `min_salary_usd_monthly` known and < `MIN_SALARY_USD_MONTHLY`
 5. Dedup: discard jobs with fingerprint already in DB
 6. Persist new jobs to SQLite
 7. If new jobs > 0: send WhatsApp digest

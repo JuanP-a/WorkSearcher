@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import UTC, datetime
 
 from worksearcher.config import Settings
 from worksearcher.core.models import Job, JobSource
@@ -34,6 +35,19 @@ async def scrape(config: Settings) -> list[Job]:
                     if source is None:
                         logger.warning("jobspy: unknown source %r — skipping row", source_str)
                         continue
+                    date_posted = row.get("date_posted")
+                    posted_at = None
+                    try:
+                        if date_posted is not None:
+                            posted_at = datetime(
+                                date_posted.year,
+                                date_posted.month,
+                                date_posted.day,
+                                tzinfo=UTC,
+                            )
+                    except Exception:
+                        posted_at = None
+
                     job = Job(
                         title=str(row.get("title", "")),
                         company=str(row.get("company", "")),
@@ -42,6 +56,7 @@ async def scrape(config: Settings) -> list[Job]:
                         source=source,
                         is_remote=True,
                         description=str(row.get("description", "") or ""),
+                        posted_at=posted_at,
                     )
                     jobs.append(job)
                 except Exception as exc:

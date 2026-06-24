@@ -1,6 +1,13 @@
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock, patch
+
 from worksearcher.core.filters import (
     extract_min_years_required,
     filter_jobs,
+    has_minimum_salary,
+    is_language_allowed,
+    is_not_blacklisted,
+    is_recent,
     is_relevant,
     meets_experience_requirement,
 )
@@ -19,6 +26,13 @@ def _job(title: str, description: str = "", is_remote: bool = True) -> Job:
         is_remote=is_remote,
         description=description,
     )
+
+
+def _fake_lang(lang: str, prob: float) -> MagicMock:
+    m = MagicMock()
+    m.lang = lang
+    m.prob = prob
+    return m
 
 
 # --- is_relevant ---
@@ -189,3 +203,182 @@ def test_range_minus_sign():
 def test_range_unicode_takes_lower_bound():
     # Ensures we don't accidentally pick the upper bound (e.g. 8) and reject valid job
     assert extract_min_years_required("1−8 years experience") == 1
+
+
+def test_fake_settings_has_filter_fields(fake_settings):
+    assert hasattr(fake_settings, "MAX_JOB_AGE_DAYS")
+    assert hasattr(fake_settings, "blacklist_list")
+    assert hasattr(fake_settings, "filter_languages_list")
+    assert hasattr(fake_settings, "MIN_SALARY_USD_MONTHLY")
+
+
+def _job_with_date(days_ago: int) -> Job:
+    posted = datetime.now(UTC) - timedelta(days=days_ago)
+    return Job(
+        title="Python Developer",
+        company="Co",
+        location="Remote",
+        url=f"https://example.com/{days_ago}",
+        source=JobSource.REMOTEOK,
+        is_remote=True,
+        posted_at=posted,
+    )
+
+
+def _job_with_salary(salary) -> Job:
+    return Job(
+        title="Python Developer",
+        company="Co",
+        location="Remote",
+        url="https://example.com/salary",
+        source=JobSource.REMOTEOK,
+        is_remote=True,
+        min_salary_usd_monthly=salary,
+    )
+
+
+# --- is_recent ---
+
+def test_recent_job_passes():
+    assert is_recent(_job_with_date(days_ago=5), max_days=30) is True
+
+
+def test_old_job_fails():
+    assert is_recent(_job_with_date(days_ago=31), max_days=30) is False
+
+
+def test_job_within_limit_passes():
+    assert is_recent(_job_with_date(days_ago=29), max_days=30) is True
+
+
+def test_job_without_posted_at_passes():
+    assert is_recent(_job("Python Developer"), max_days=30) is True
+
+
+# --- is_not_blacklisted ---
+
+def test_clean_job_passes_blacklist():
+    assert is_not_blacklisted(_job("Python Developer"), ["security clearance"]) is True
+
+
+def test_blacklisted_title_fails():
+    assert is_not_blacklisted(_job("Security Clearance Required"), ["security clearance"]) is False
+
+
+def test_blacklisted_description_fails():
+    job = _job("Backend Engineer", description="Must have TS/SCI clearance")
+    assert is_not_blacklisted(job, ["ts/sci"]) is False
+
+
+def test_blacklist_is_case_insensitive():
+    assert is_not_blacklisted(_job("TOP SECRET project"), ["top secret"]) is False
+
+
+def test_empty_blacklist_always_passes():
+    assert is_not_blacklisted(_job("Any Title"), []) is True
+
+
+# --- is_language_allowed ---
+
+def test_english_job_passes():
+    with patch("worksearcher.core.filters.detect_langs", return_value=[_fake_lang("en", 0.99)]):
+        assert is_language_allowed(_job("Python Developer"), ["en", "es"]) is True
+
+
+def test_spanish_job_passes():
+    with patch("worksearcher.core.filters.detect_langs", return_value=[_fake_lang("es", 0.95)]):
+        assert is_language_allowed(_job("Desarrollador Python"), ["en", "es"]) is True
+
+
+def test_french_job_fails():
+    with patch("worksearcher.core.filters.detect_langs", return_value=[_fake_lang("fr", 0.92)]):
+        assert is_language_allowed(_job("Développeur Python"), ["en", "es"]) is False
+
+
+def test_low_confidence_passes_language_filter():
+    # Confidence below 0.8 → pass through regardless of language
+    with patch("worksearcher.core.filters.detect_langs", return_value=[_fake_lang("fr", 0.6)]):
+        assert is_language_allowed(_job("ambiguous text"), ["en", "es"]) is True
+
+
+def test_language_passes_on_detection_error():
+    with patch("worksearcher.core.filters.detect_langs", side_effect=Exception("undetectable")):
+        assert is_language_allowed(_job("???"), ["en", "es"]) is True
+
+
+def test_empty_text_passes_language_filter():
+    job = _job("", description="")
+    assert is_language_allowed(job, ["en", "es"]) is True
+
+
+# --- has_minimum_salary ---
+
+def test_salary_above_minimum_passes():
+    assert has_minimum_salary(_job_with_salary(1500.0), min_usd_monthly=1200.0) is True
+
+
+def test_salary_below_minimum_fails():
+    assert has_minimum_salary(_job_with_salary(1000.0), min_usd_monthly=1200.0) is False
+
+
+def test_salary_exactly_at_minimum_passes():
+    assert has_minimum_salary(_job_with_salary(1200.0), min_usd_monthly=1200.0) is True
+
+
+def test_no_salary_passes():
+    assert has_minimum_salary(_job_with_salary(None), min_usd_monthly=1200.0) is True
+
+
+# --- filter_jobs with all new params ---
+
+def test_filter_jobs_applies_date_filter():
+    jobs = [
+        _job_with_date(days_ago=5),
+        _job_with_date(days_ago=40),
+        _job("Python Dev"),
+    ]
+    result = filter_jobs(jobs, ["python"], max_job_age_days=30)
+    assert len(result) == 2
+
+
+def test_filter_jobs_applies_blacklist():
+    jobs = [
+        _job("Python Developer"),
+        _job("Python Dev, US Citizens Only"),
+    ]
+    result = filter_jobs(jobs, ["python"], blacklist=["us citizens only"])
+    assert len(result) == 1
+    assert result[0].title == "Python Developer"
+
+
+def test_filter_jobs_applies_language_filter():
+    with patch("worksearcher.core.filters.detect_langs", side_effect=[
+        [_fake_lang("en", 0.99)],
+        [_fake_lang("fr", 0.95)],
+    ]):
+        jobs = [_job("Python Developer"), _job("Développeur Python")]
+        result = filter_jobs(jobs, ["python"], allowed_languages=["en", "es"])
+    assert len(result) == 1
+
+
+def test_filter_jobs_applies_salary_filter():
+    jobs = [
+        _job_with_salary(1500.0),
+        _job_with_salary(800.0),
+        _job_with_salary(None),
+    ]
+    result = filter_jobs(jobs, ["python"], min_salary_usd_monthly=1200.0)
+    assert len(result) == 2
+
+
+def test_filter_jobs_none_params_skip_filters():
+    jobs = [_job_with_date(days_ago=60), _job("Python Dev")]
+    result = filter_jobs(
+        jobs,
+        ["python"],
+        max_job_age_days=None,
+        blacklist=None,
+        allowed_languages=None,
+        min_salary_usd_monthly=None,
+    )
+    assert len(result) == 2

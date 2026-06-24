@@ -13,6 +13,8 @@ from worksearcher.scrapers import (
     bumeran_scraper,
     computrabajo_scraper,
     cybersecjobs_scraper,
+    hackernews_scraper,
+    himalayas_scraper,
     jobspy_scraper,
     remoteok_scraper,
     remotive_scraper,
@@ -41,6 +43,8 @@ _SCRAPERS: list[Callable[[Settings], Coroutine[None, None, list[Job]]]] = [
     cybersecjobs_scraper.scrape,
     computrabajo_scraper.scrape,
     bumeran_scraper.scrape,
+    himalayas_scraper.scrape,
+    hackernews_scraper.scrape,
 ]
 
 
@@ -68,9 +72,20 @@ async def _run_pipeline(config: Settings) -> None:
             all_jobs.extend(result)
     logger.info("Scraped: %d total jobs", len(all_jobs))
 
-    # Filter by keywords + remote + experience cap
-    relevant = filter_jobs(all_jobs, config.keywords_list, config.MAX_YEARS_EXPERIENCE)
-    logger.info("Relevant: %d jobs after filters (keywords + experience ≤%dy)", len(relevant), config.MAX_YEARS_EXPERIENCE)
+    # Filter by keywords + remote + experience cap + date + blacklist + language + salary
+    relevant = filter_jobs(
+        all_jobs,
+        config.keywords_list,
+        max_years_experience=config.MAX_YEARS_EXPERIENCE,
+        max_job_age_days=config.MAX_JOB_AGE_DAYS,
+        blacklist=config.blacklist_list,
+        allowed_languages=config.filter_languages_list,
+        min_salary_usd_monthly=config.MIN_SALARY_USD_MONTHLY,
+    )
+    logger.info(
+        "Relevant: %d jobs after filters (keywords + experience + date + blacklist + language + salary)",
+        len(relevant),
+    )
 
     # Dedup + persist + notify
     conn = get_connection()
