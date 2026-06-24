@@ -34,7 +34,10 @@ fi
 echo "=== Python dependencies ==="
 cd "$APP_DIR"
 uv venv
-uv pip install -r requirements.lock
+# PyPI packages: all hashes verified against requirements.hashes.lock
+uv pip install --require-hashes -r requirements.hashes.lock
+# jobspy from pinned git SHA — VCS URLs cannot carry pip hashes by design
+uv pip install "git+https://github.com/Bunsly/JobSpy.git@fda080a373e8226f3fd60635323f5da9af9892b1#egg=python-jobspy"
 
 echo "=== Playwright (browser + system libs) ==="
 uv run playwright install chromium
