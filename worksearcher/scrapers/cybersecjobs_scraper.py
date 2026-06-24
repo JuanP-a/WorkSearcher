@@ -18,7 +18,7 @@ async def scrape(config: Settings) -> list[Job]:
         async with httpx.AsyncClient(
             headers={"User-Agent": "WorkSearcher/1.0"},
             timeout=30,
-            follow_redirects=True,
+            follow_redirects=False,
         ) as client:
             response = await client.get(_ISECJOBS_URL)
             response.raise_for_status()
