@@ -1,5 +1,8 @@
 # WorkSearcher — run every 4 hours
 # Install as the worksearcher service user (NOT root):
 #   sudo -u worksearcher crontab -e
-0 */4 * * * cd /opt/worksearcher && uv run python -m worksearcher run >> /var/log/worksearcher.log 2>&1
+#
+# Uses absolute path to uv (/usr/local/bin/uv) — required because cron
+# does not inherit the login shell PATH and worksearcher has no home dir.
+0 */4 * * * /usr/local/bin/uv run --project /opt/worksearcher python -m worksearcher run >> /var/log/worksearcher.log 2>&1
 # Log rotation installed by setup.sh at /etc/logrotate.d/worksearcher
