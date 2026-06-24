@@ -46,6 +46,12 @@ async def scrape(config: Settings) -> list[Job]:
                         min_salary_usd_monthly = float(min_salary_raw) / 12
                     elif salary_period == "monthly":
                         min_salary_usd_monthly = float(min_salary_raw)
+                    else:
+                        logger.debug(
+                            "Himalayas: unhandled salary period %r — skipping salary for %r",
+                            salary_period,
+                            item.get("title"),
+                        )
 
                 job = Job(
                     title=item.get("title", ""),

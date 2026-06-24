@@ -48,6 +48,7 @@ def meets_experience_requirement(job: Job, max_years: int) -> bool:
 
 
 def is_relevant(job: Job, keywords: list[str]) -> bool:
+    """Return True if job is remote and title or description contains a keyword."""
     if not job.is_remote:
         return False
     searchable = f"{job.title} {job.description}".lower()
@@ -110,9 +111,9 @@ def filter_jobs(
         filtered = [j for j in filtered if meets_experience_requirement(j, max_years_experience)]
     if max_job_age_days is not None:
         filtered = [j for j in filtered if is_recent(j, max_job_age_days)]
-    if blacklist:
+    if blacklist is not None:
         filtered = [j for j in filtered if is_not_blacklisted(j, blacklist)]
-    if allowed_languages:
+    if allowed_languages is not None:
         filtered = [j for j in filtered if is_language_allowed(j, allowed_languages)]
     if min_salary_usd_monthly is not None:
         filtered = [j for j in filtered if has_minimum_salary(j, min_salary_usd_monthly)]

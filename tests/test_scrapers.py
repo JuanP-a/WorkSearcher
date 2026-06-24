@@ -87,7 +87,7 @@ async def test_remoteok_parses_jobs_correctly(fake_settings):
     assert jobs[0].company == "Startup"
     assert jobs[0].source == JobSource.REMOTEOK
     assert jobs[0].is_remote is True
-    assert "slug" not in jobs[0].url or "remoteok.com" in jobs[0].url
+    assert jobs[0].url.startswith("https://remoteok.com/remote-jobs/")
 
 
 @pytest.mark.asyncio
