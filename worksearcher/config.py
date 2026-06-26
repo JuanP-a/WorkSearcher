@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     JOBSPY_RESULTS_WANTED: int = 50
     JOBSPY_HOURS_OLD: int = 24
     SEARCH_LOCATION: str = "Remote"
+    HTTP_TIMEOUT_SECONDS: int = 30
 
     SCRAPE_INTERVAL_HOURS: int = 4
     MAX_YEARS_EXPERIENCE: int = 3

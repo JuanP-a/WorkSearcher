@@ -760,3 +760,14 @@ def test_jobspy_config_fields_exist():
     assert s.JOBSPY_RESULTS_WANTED == 50
     assert s.JOBSPY_HOURS_OLD == 24
     assert s.SEARCH_LOCATION == "Remote"
+
+
+def test_http_timeout_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.HTTP_TIMEOUT_SECONDS == 30

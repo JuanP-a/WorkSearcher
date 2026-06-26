@@ -16,7 +16,7 @@ async def scrape(config: Settings) -> list[Job]:
     try:
         async with httpx.AsyncClient(
             headers={"User-Agent": "WorkSearcher/1.0"},
-            timeout=30,
+            timeout=config.HTTP_TIMEOUT_SECONDS,
         ) as client:
             response = await client.get(HIMALAYAS_API, params={"limit": 50})
             response.raise_for_status()
@@ -74,7 +74,9 @@ async def scrape(config: Settings) -> list[Job]:
                 )
                 jobs.append(job)
             except Exception as exc:
-                logger.warning("Himalayas: skipping malformed job %s: %s", item.get("title", "?"), exc)
+                logger.warning(
+                    "Himalayas: skipping malformed job %s: %s", item.get("title", "?"), exc
+                )
                 continue
 
         logger.info("Himalayas: %d jobs found", len(jobs))

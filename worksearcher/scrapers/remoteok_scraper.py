@@ -15,7 +15,7 @@ async def scrape(config: Settings) -> list[Job]:
     try:
         async with httpx.AsyncClient(
             headers={"User-Agent": "WorkSearcher/1.0"},
-            timeout=30,
+            timeout=config.HTTP_TIMEOUT_SECONDS,
         ) as client:
             response = await client.get(REMOTEOK_API)
             response.raise_for_status()
@@ -27,9 +27,7 @@ async def scrape(config: Settings) -> list[Job]:
         for item in listings:
             try:
                 epoch = item.get("epoch")
-                posted_at = (
-                    datetime.fromtimestamp(int(epoch), tz=UTC) if epoch else None
-                )
+                posted_at = datetime.fromtimestamp(int(epoch), tz=UTC) if epoch else None
 
                 salary_min = item.get("salary_min")
                 min_salary_usd_monthly = (
@@ -49,7 +47,9 @@ async def scrape(config: Settings) -> list[Job]:
                 )
                 jobs.append(job)
             except Exception as exc:
-                logger.warning("RemoteOK: skipping malformed job %s: %s", item.get("slug", "?"), exc)
+                logger.warning(
+                    "RemoteOK: skipping malformed job %s: %s", item.get("slug", "?"), exc
+                )
                 continue
 
         logger.info("RemoteOK: %d jobs found", len(jobs))

@@ -26,7 +26,7 @@ async def scrape(config: Settings) -> list[Job]:
     try:
         async with httpx.AsyncClient(
             headers={"User-Agent": "WorkSearcher/1.0"},
-            timeout=30,
+            timeout=config.HTTP_TIMEOUT_SECONDS,
         ) as client:
             response = await client.get(WWR_RSS_URL)
             response.raise_for_status()
@@ -62,16 +62,18 @@ async def scrape(config: Settings) -> list[Job]:
                     except Exception:
                         pass
 
-                jobs.append(Job(
-                    title=title,
-                    company=company,
-                    location="Remote",
-                    url=link,
-                    source=JobSource.WWR,
-                    is_remote=True,
-                    description=description,
-                    posted_at=posted_at,
-                ))
+                jobs.append(
+                    Job(
+                        title=title,
+                        company=company,
+                        location="Remote",
+                        url=link,
+                        source=JobSource.WWR,
+                        is_remote=True,
+                        description=description,
+                        posted_at=posted_at,
+                    )
+                )
             except Exception as exc:
                 logger.warning("WWR: skipping malformed item: %s", exc)
                 continue

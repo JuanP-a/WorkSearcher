@@ -17,7 +17,7 @@ async def scrape(config: Settings) -> list[Job]:
     try:
         async with httpx.AsyncClient(
             headers={"User-Agent": "WorkSearcher/1.0"},
-            timeout=30,
+            timeout=config.HTTP_TIMEOUT_SECONDS,
             follow_redirects=False,
         ) as client:
             response = await client.get(_ISECJOBS_URL)
@@ -27,7 +27,9 @@ async def scrape(config: Settings) -> list[Job]:
         job_links = soup.select("a.stretched-link[href^='/job/']")
 
         if not job_links:
-            logger.warning("CyberSecJobs(isecjobs): no job links found — site structure may have changed")
+            logger.warning(
+                "CyberSecJobs(isecjobs): no job links found — site structure may have changed"
+            )
             return []
 
         jobs = []
@@ -53,20 +55,26 @@ async def scrape(config: Settings) -> list[Job]:
                 if not company:
                     missing_company += 1
 
-                jobs.append(Job(
-                    title=title,
-                    company=company,
-                    location="Remote",
-                    url=job_url,
-                    source=JobSource.CYBERSECJOBS,
-                    is_remote=True,
-                ))
+                jobs.append(
+                    Job(
+                        title=title,
+                        company=company,
+                        location="Remote",
+                        url=job_url,
+                        source=JobSource.CYBERSECJOBS,
+                        is_remote=True,
+                    )
+                )
             except Exception as exc:
                 logger.warning("CyberSecJobs(isecjobs): skipping malformed link: %s", exc)
                 continue
 
         if missing_company:
-            logger.warning("CyberSecJobs(isecjobs): %d/%d jobs missing company name", missing_company, len(jobs))
+            logger.warning(
+                "CyberSecJobs(isecjobs): %d/%d jobs missing company name",
+                missing_company,
+                len(jobs),
+            )
 
         logger.info("CyberSecJobs(isecjobs): %d jobs found", len(jobs))
         return jobs
