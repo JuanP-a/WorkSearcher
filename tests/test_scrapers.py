@@ -782,3 +782,45 @@ def test_himalayas_results_limit_config_field_exists():
         META_RECIPIENT_PHONE="x",
     )
     assert s.HIMALAYAS_RESULTS_LIMIT == 50
+
+
+def test_occ_search_terms_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.occ_search_terms_list == [
+        "desarrollador",
+        "programador",
+        "backend",
+        "ciberseguridad",
+        "seguridad informatica",
+    ]
+
+
+def test_occ_known_scraper_registered_in_config():
+    import pytest
+    from pydantic import ValidationError
+
+    from worksearcher.config import Settings
+
+    # "occ" must be accepted as a valid scraper name
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+        ENABLED_SCRAPERS="occ",
+    )
+    assert "occ" in s.enabled_scrapers_list
+
+    # unknown name must still be rejected
+    with pytest.raises(ValidationError, match="Unknown scrapers"):
+        Settings(
+            META_PHONE_NUMBER_ID="x",
+            META_ACCESS_TOKEN="x",
+            META_RECIPIENT_PHONE="x",
+            ENABLED_SCRAPERS="occ,notareal",
+        )
