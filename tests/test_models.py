@@ -49,7 +49,7 @@ def test_fingerprint_is_case_insensitive():
 
 
 def test_job_source_enum_covers_all_platforms():
-    # All 11 target platforms must be represented
+    # All 12 target platforms must be represented
     assert JobSource.LINKEDIN == "linkedin"
     assert JobSource.INDEED == "indeed"
     assert JobSource.GLASSDOOR == "glassdoor"
@@ -61,6 +61,7 @@ def test_job_source_enum_covers_all_platforms():
     assert JobSource.BUMERAN == "bumeran"
     assert JobSource.HIMALAYAS == "himalayas"
     assert JobSource.HACKERNEWS == "hackernews"
+    assert JobSource.OCC == "occ"
 
 
 def test_fingerprint_differs_by_company():
@@ -131,4 +132,5 @@ def test_job_accepts_salary_value():
 
 def test_job_source_occ_value():
     from worksearcher.core.models import JobSource
+
     assert JobSource.OCC == "occ"
