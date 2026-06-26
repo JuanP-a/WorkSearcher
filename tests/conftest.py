@@ -38,6 +38,7 @@ class FakeSettings:
     HTTP_TIMEOUT_SECONDS = 30
     HIMALAYAS_RESULTS_LIMIT = 50
     MAX_JOBS_PER_MESSAGE = 10
+    SCRAPER_TIMEOUT_SECONDS = 120
 
 
 @pytest.fixture

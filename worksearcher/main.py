@@ -58,9 +58,11 @@ async def _run_pipeline(config: Settings) -> None:
         scraper: Callable[[Settings], Coroutine[None, None, list[Job]]],
     ) -> list[Job]:
         try:
-            return await asyncio.wait_for(scraper(config), timeout=120)
+            return await asyncio.wait_for(scraper(config), timeout=config.SCRAPER_TIMEOUT_SECONDS)
         except TimeoutError:
-            logger.error("Scraper %s timed out after 120s", scraper.__name__)
+            logger.error(
+                "Scraper %s timed out after %ds", scraper.__name__, config.SCRAPER_TIMEOUT_SECONDS
+            )
             return []
 
     active_scrapers = [_ALL_SCRAPERS[name] for name in config.enabled_scrapers_list]

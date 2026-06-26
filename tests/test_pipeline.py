@@ -332,3 +332,14 @@ def test_max_jobs_per_message_config_field_exists():
         META_RECIPIENT_PHONE="x",
     )
     assert s.MAX_JOBS_PER_MESSAGE == 10
+
+
+def test_scraper_timeout_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.SCRAPER_TIMEOUT_SECONDS == 120

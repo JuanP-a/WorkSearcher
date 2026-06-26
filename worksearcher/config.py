@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     HTTP_TIMEOUT_SECONDS: int = 30
     HIMALAYAS_RESULTS_LIMIT: int = 50
     MAX_JOBS_PER_MESSAGE: int = 10
+    SCRAPER_TIMEOUT_SECONDS: int = 120
 
     SCRAPE_INTERVAL_HOURS: int = 4
     MAX_YEARS_EXPERIENCE: int = 3
