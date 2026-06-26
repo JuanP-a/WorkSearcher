@@ -127,3 +127,8 @@ def test_job_accepts_salary_value():
         min_salary_usd_monthly=1500.0,
     )
     assert job.min_salary_usd_monthly == 1500.0
+
+
+def test_job_source_occ_value():
+    from worksearcher.core.models import JobSource
+    assert JobSource.OCC == "occ"
