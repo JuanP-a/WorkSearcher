@@ -1,9 +1,11 @@
 """Shared test fixtures and helpers."""
+
 import pytest
 
 
 class FakeSettings:
     """Implements the full Settings interface so tests don't diverge when new fields are added."""
+
     META_PHONE_NUMBER_ID = "123456789"
     META_ACCESS_TOKEN = "fake_token"
     META_RECIPIENT_PHONE = "521234567890"
@@ -15,6 +17,18 @@ class FakeSettings:
     filter_languages_list: list = ["en", "es"]
     MIN_SALARY_USD_MONTHLY = None
     DB_PATH = "worksearcher.db"
+    jobspy_terms_list = ["python", "cybersecurity"]
+    enabled_scrapers_list = [
+        "jobspy",
+        "remoteok",
+        "remotive",
+        "wwr",
+        "cybersecjobs",
+        "computrabajo",
+        "bumeran",
+        "himalayas",
+        "hackernews",
+    ]
 
 
 @pytest.fixture

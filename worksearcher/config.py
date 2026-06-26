@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,6 +23,24 @@ class Settings(BaseSettings):
 
     # Search query sent to LinkedIn/Indeed/Glassdoor via jobspy — max 5 terms
     JOBSPY_SEARCH_TERMS: str = "python,cybersecurity,software engineer,devops,javascript"
+
+    _KNOWN_SCRAPERS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "jobspy",
+            "remoteok",
+            "remotive",
+            "wwr",
+            "cybersecjobs",
+            "computrabajo",
+            "bumeran",
+            "himalayas",
+            "hackernews",
+        }
+    )
+
+    ENABLED_SCRAPERS: str = (
+        "jobspy,remoteok,remotive,wwr,cybersecjobs,computrabajo,bumeran,himalayas,hackernews"
+    )
 
     SCRAPE_INTERVAL_HOURS: int = 4
     MAX_YEARS_EXPERIENCE: int = 3
@@ -58,6 +78,17 @@ class Settings(BaseSettings):
             raise ValueError(f"JOBSPY_SEARCH_TERMS must have at most 5 terms, got {len(terms)}")
         return v
 
+    @field_validator("ENABLED_SCRAPERS")
+    @classmethod
+    def validate_scraper_names(cls, v: str) -> str:
+        names = {n.strip().lower() for n in v.split(",") if n.strip()}
+        unknown = names - cls._KNOWN_SCRAPERS
+        if unknown:
+            raise ValueError(
+                f"Unknown scrapers: {sorted(unknown)}. Known: {sorted(cls._KNOWN_SCRAPERS)}"
+            )
+        return v
+
     @property
     def keywords_list(self) -> list[str]:
         return [k.strip().lower() for k in self.SEARCH_KEYWORDS.split(",")]
@@ -65,6 +96,10 @@ class Settings(BaseSettings):
     @property
     def jobspy_terms_list(self) -> list[str]:
         return [t.strip().lower() for t in self.JOBSPY_SEARCH_TERMS.split(",") if t.strip()]
+
+    @property
+    def enabled_scrapers_list(self) -> list[str]:
+        return [n.strip().lower() for n in self.ENABLED_SCRAPERS.split(",") if n.strip()]
 
     @property
     def blacklist_list(self) -> list[str]:

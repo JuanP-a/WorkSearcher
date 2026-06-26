@@ -36,17 +36,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-_SCRAPERS: list[Callable[[Settings], Coroutine[None, None, list[Job]]]] = [
-    jobspy_scraper.scrape,
-    remoteok_scraper.scrape,
-    remotive_scraper.scrape,
-    wwr_scraper.scrape,
-    cybersecjobs_scraper.scrape,
-    computrabajo_scraper.scrape,
-    bumeran_scraper.scrape,
-    himalayas_scraper.scrape,
-    hackernews_scraper.scrape,
-]
+_ALL_SCRAPERS: dict[str, Callable[[Settings], Coroutine[None, None, list[Job]]]] = {
+    "jobspy": jobspy_scraper.scrape,
+    "remoteok": remoteok_scraper.scrape,
+    "remotive": remotive_scraper.scrape,
+    "wwr": wwr_scraper.scrape,
+    "cybersecjobs": cybersecjobs_scraper.scrape,
+    "computrabajo": computrabajo_scraper.scrape,
+    "bumeran": bumeran_scraper.scrape,
+    "himalayas": himalayas_scraper.scrape,
+    "hackernews": hackernews_scraper.scrape,
+}
 
 
 async def _run_pipeline(config: Settings) -> None:
@@ -54,15 +54,18 @@ async def _run_pipeline(config: Settings) -> None:
 
     # Scrape all platforms concurrently — 120s cap per scraper prevents a hung
     # Playwright browser from blocking the pipeline until the next cron fires on top
-    async def _scrape_with_timeout(scraper: Callable[[Settings], Coroutine[None, None, list[Job]]]) -> list[Job]:
+    async def _scrape_with_timeout(
+        scraper: Callable[[Settings], Coroutine[None, None, list[Job]]],
+    ) -> list[Job]:
         try:
             return await asyncio.wait_for(scraper(config), timeout=120)
         except TimeoutError:
             logger.error("Scraper %s timed out after 120s", scraper.__name__)
             return []
 
+    active_scrapers = [_ALL_SCRAPERS[name] for name in config.enabled_scrapers_list]
     results = await asyncio.gather(
-        *[_scrape_with_timeout(scraper) for scraper in _SCRAPERS],
+        *[_scrape_with_timeout(scraper) for scraper in active_scrapers],
         return_exceptions=True,
     )
     all_jobs: list[Job] = []
@@ -96,7 +99,9 @@ async def _run_pipeline(config: Settings) -> None:
         # Retry any jobs saved but not notified in a previous failed run
         unnotified = get_unnotified_jobs(conn)
         if unnotified:
-            logger.info("Retrying notification for %d jobs from previous failed run", len(unnotified))
+            logger.info(
+                "Retrying notification for %d jobs from previous failed run", len(unnotified)
+            )
             if await send_digest(unnotified, config):
                 mark_jobs_notified([j.fingerprint for j in unnotified[:MAX_JOBS_PER_MESSAGE]], conn)
 
