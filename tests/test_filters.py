@@ -39,6 +39,7 @@ def _fake_lang(lang: str, prob: float) -> MagicMock:
 
 # --- is_relevant ---
 
+
 def test_relevant_by_title_keyword():
     assert is_relevant(_job("Python Developer"), KEYWORDS) is True
 
@@ -79,6 +80,7 @@ def test_filter_jobs_empty_list():
 
 
 # --- extract_min_years_required ---
+
 
 def test_no_experience_mention_returns_none():
     assert extract_min_years_required("Great company, exciting role") is None
@@ -126,6 +128,7 @@ def test_one_year():
 
 # --- meets_experience_requirement ---
 
+
 def test_no_mention_passes():
     job = _job("Backend Dev", description="Exciting startup")
     assert meets_experience_requirement(job, max_years=3) is True
@@ -163,6 +166,7 @@ def test_experience_in_title_detected():
 
 # --- filter_jobs with experience cap ---
 
+
 def test_filter_jobs_applies_experience_cap():
     jobs = [
         _job("Python Dev", description="2 years experience"),
@@ -186,6 +190,7 @@ def test_filter_jobs_no_experience_cap_keeps_all_relevant():
 
 
 # --- Unicode dash variants in range pattern (BACK-3) ---
+
 
 def test_range_figure_dash():
     # U+2012 figure dash — common in copy-pasted PDF text
@@ -241,6 +246,7 @@ def _job_with_salary(salary) -> Job:
 
 # --- is_recent ---
 
+
 def test_recent_job_passes():
     assert is_recent(_job_with_date(days_ago=5), max_days=30) is True
 
@@ -258,6 +264,7 @@ def test_job_without_posted_at_passes():
 
 
 # --- is_not_blacklisted ---
+
 
 def test_clean_job_passes_blacklist():
     assert is_not_blacklisted(_job("Python Developer"), ["security clearance"]) is True
@@ -281,6 +288,7 @@ def test_empty_blacklist_always_passes():
 
 
 # --- is_language_allowed ---
+
 
 def test_english_job_passes():
     with patch("worksearcher.core.filters.detect_langs", return_value=[_fake_lang("en", 0.99)]):
@@ -315,6 +323,7 @@ def test_empty_text_passes_language_filter():
 
 # --- has_minimum_salary ---
 
+
 def test_salary_above_minimum_passes():
     assert has_minimum_salary(_job_with_salary(1500.0), min_usd_monthly=1200.0) is True
 
@@ -332,6 +341,7 @@ def test_no_salary_passes():
 
 
 # --- filter_jobs with all new params ---
+
 
 def test_filter_jobs_applies_date_filter():
     jobs = [
@@ -354,10 +364,13 @@ def test_filter_jobs_applies_blacklist():
 
 
 def test_filter_jobs_applies_language_filter():
-    with patch("worksearcher.core.filters.detect_langs", side_effect=[
-        [_fake_lang("en", 0.99)],
-        [_fake_lang("fr", 0.95)],
-    ]):
+    with patch(
+        "worksearcher.core.filters.detect_langs",
+        side_effect=[
+            [_fake_lang("en", 0.99)],
+            [_fake_lang("fr", 0.95)],
+        ],
+    ):
         jobs = [_job("Python Developer"), _job("Développeur Python")]
         result = filter_jobs(jobs, ["python"], allowed_languages=["en", "es"])
     assert len(result) == 1
@@ -387,6 +400,7 @@ def test_filter_jobs_none_params_skip_filters():
 
 
 # --- langdetect determinism ---
+
 
 def test_langdetect_seed_is_set():
     # Fix b36fe38: seed must be 0 so language filtering produces identical results

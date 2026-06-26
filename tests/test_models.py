@@ -66,8 +66,13 @@ def test_job_source_enum_covers_all_platforms():
 def test_fingerprint_differs_by_company():
     # Different companies on the same URL must yield different fingerprints
     # (ensures company is part of the hash input)
-    base = dict(title="Dev", location="Remote", url="https://example.com/1",
-                source=JobSource.REMOTEOK, is_remote=True)
+    base = dict(
+        title="Dev",
+        location="Remote",
+        url="https://example.com/1",
+        source=JobSource.REMOTEOK,
+        is_remote=True,
+    )
     job1 = Job(**base, company="CompanyA")
     job2 = Job(**base, company="CompanyB")
     assert job1.fingerprint != job2.fingerprint
@@ -77,12 +82,25 @@ def test_keywords_soc_matches_substring():
     # "soc" intentionally matches substrings (e.g. "SOC Analyst")
     # Documented here so the behaviour is explicit and reviewed if changed
     from worksearcher.core.filters import is_relevant
-    job = Job(title="SOC Analyst", company="Co", location="Remote",
-              url="https://example.com/1", source=JobSource.REMOTEOK, is_remote=True)
+
+    job = Job(
+        title="SOC Analyst",
+        company="Co",
+        location="Remote",
+        url="https://example.com/1",
+        source=JobSource.REMOTEOK,
+        is_remote=True,
+    )
     assert is_relevant(job, ["soc"]) is True
     # Substring match: "social" also contains "soc" — accepted tradeoff for simplicity
-    social_job = Job(title="Social Media Manager", company="Co", location="Remote",
-                     url="https://example.com/2", source=JobSource.REMOTEOK, is_remote=True)
+    social_job = Job(
+        title="Social Media Manager",
+        company="Co",
+        location="Remote",
+        url="https://example.com/2",
+        source=JobSource.REMOTEOK,
+        is_remote=True,
+    )
     assert is_relevant(social_job, ["soc"]) is True  # known behaviour, not a bug
 
 

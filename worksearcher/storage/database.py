@@ -76,15 +76,17 @@ def get_unnotified_jobs(conn: sqlite3.Connection) -> list[Job]:
     jobs = []
     for row in rows:
         try:
-            jobs.append(Job(
-                title=row[0],
-                company=row[1],
-                location=row[2],
-                url=row[3],
-                source=JobSource(row[4]),
-                is_remote=bool(row[5]),
-                description=row[6] or "",
-            ))
+            jobs.append(
+                Job(
+                    title=row[0],
+                    company=row[1],
+                    location=row[2],
+                    url=row[3],
+                    source=JobSource(row[4]),
+                    is_remote=bool(row[5]),
+                    description=row[6] or "",
+                )
+            )
         except Exception:
             continue
     return jobs
