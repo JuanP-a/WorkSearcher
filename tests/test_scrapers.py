@@ -771,3 +771,14 @@ def test_http_timeout_config_field_exists():
         META_RECIPIENT_PHONE="x",
     )
     assert s.HTTP_TIMEOUT_SECONDS == 30
+
+
+def test_himalayas_results_limit_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.HIMALAYAS_RESULTS_LIMIT == 50

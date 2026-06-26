@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     JOBSPY_HOURS_OLD: int = 24
     SEARCH_LOCATION: str = "Remote"
     HTTP_TIMEOUT_SECONDS: int = 30
+    HIMALAYAS_RESULTS_LIMIT: int = 50
+    MAX_JOBS_PER_MESSAGE: int = 10
 
     SCRAPE_INTERVAL_HOURS: int = 4
     MAX_YEARS_EXPERIENCE: int = 3

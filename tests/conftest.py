@@ -36,6 +36,8 @@ class FakeSettings:
     JOBSPY_HOURS_OLD = 24
     SEARCH_LOCATION = "Remote"
     HTTP_TIMEOUT_SECONDS = 30
+    HIMALAYAS_RESULTS_LIMIT = 50
+    MAX_JOBS_PER_MESSAGE = 10
 
 
 @pytest.fixture

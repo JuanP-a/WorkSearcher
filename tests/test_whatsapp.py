@@ -4,12 +4,11 @@ import respx
 
 from worksearcher.core.models import Job, JobSource
 from worksearcher.notifier.whatsapp import (
-    MAX_JOBS_PER_MESSAGE as _MAX_JOBS_PER_MESSAGE,
-)
-from worksearcher.notifier.whatsapp import (
     _build_message,
     send_digest,
 )
+
+_MAX_JOBS_PER_MESSAGE = 10  # matches Settings.MAX_JOBS_PER_MESSAGE default
 
 
 def _job(n: int, source: JobSource = JobSource.REMOTEOK) -> Job:
@@ -25,53 +24,55 @@ def _job(n: int, source: JobSource = JobSource.REMOTEOK) -> Job:
 
 # --- _build_message ---
 
+
 def test_build_message_header():
-    msg = _build_message([_job(1)])
+    msg = _build_message([_job(1)], _MAX_JOBS_PER_MESSAGE)
     assert "*WorkSearcher — nuevas ofertas:*" in msg
 
 
 def test_build_message_includes_title_and_company():
-    msg = _build_message([_job(1)])
+    msg = _build_message([_job(1)], _MAX_JOBS_PER_MESSAGE)
     assert "Job 1" in msg
     assert "Company 1" in msg
 
 
 def test_build_message_includes_url():
-    msg = _build_message([_job(1)])
+    msg = _build_message([_job(1)], _MAX_JOBS_PER_MESSAGE)
     assert "https://example.com/job/1" in msg
 
 
 def test_build_message_exact_limit_no_overflow_line():
     jobs = [_job(i) for i in range(_MAX_JOBS_PER_MESSAGE)]
-    msg = _build_message(jobs)
+    msg = _build_message(jobs, _MAX_JOBS_PER_MESSAGE)
     assert "más guardadas" not in msg
 
 
 def test_build_message_overflow_shows_count():
     jobs = [_job(i) for i in range(_MAX_JOBS_PER_MESSAGE + 5)]
-    msg = _build_message(jobs)
+    msg = _build_message(jobs, _MAX_JOBS_PER_MESSAGE)
     assert "5 más guardadas en DB" in msg
 
 
 def test_build_message_truncates_at_max():
     jobs = [_job(i) for i in range(20)]
-    msg = _build_message(jobs)
+    msg = _build_message(jobs, _MAX_JOBS_PER_MESSAGE)
     assert f"Job {_MAX_JOBS_PER_MESSAGE - 1}" in msg
     assert f"Job {_MAX_JOBS_PER_MESSAGE}" not in msg
 
 
 def test_build_message_single_job():
-    msg = _build_message([_job(1)])
+    msg = _build_message([_job(1)], _MAX_JOBS_PER_MESSAGE)
     assert msg.count("•") == 1
 
 
 def test_build_message_empty_list():
-    msg = _build_message([])
+    msg = _build_message([], _MAX_JOBS_PER_MESSAGE)
     assert "*WorkSearcher — nuevas ofertas:*" in msg
     assert "•" not in msg
 
 
 # --- send_digest ---
+
 
 @pytest.mark.asyncio
 @respx.mock
@@ -87,6 +88,7 @@ async def test_send_digest_sends_correct_payload(fake_settings):
     assert request.headers["Content-Type"] == "application/json"
     body = request.content
     import json
+
     payload = json.loads(body)
     assert payload["to"] == "521234567890"
     assert payload["messaging_product"] == "whatsapp"

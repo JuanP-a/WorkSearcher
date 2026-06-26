@@ -10,7 +10,6 @@ import pytest
 
 from worksearcher.core.models import Job, JobSource
 from worksearcher.main import _run_pipeline
-from worksearcher.notifier.whatsapp import MAX_JOBS_PER_MESSAGE
 from worksearcher.storage.database import (
     init_db,
     mark_jobs_notified,
@@ -302,7 +301,7 @@ async def test_pipeline_marks_only_sent_jobs_as_notified(tmp_path, monkeypatch, 
     init_db(conn)
     conn.close()
 
-    overflow = MAX_JOBS_PER_MESSAGE + 5
+    overflow = fake_settings.MAX_JOBS_PER_MESSAGE + 5
     jobs = [_job(i) for i in range(overflow)]
     monkeypatch.setattr("worksearcher.main._ALL_SCRAPERS", {"fake": _make_fake_scraper(jobs)})
     fake_settings.enabled_scrapers_list = ["fake"]
@@ -320,5 +319,16 @@ async def test_pipeline_marks_only_sent_jobs_as_notified(tmp_path, monkeypatch, 
     unnotified_count = conn.execute("SELECT COUNT(*) FROM jobs WHERE notified=0").fetchone()[0]
     conn.close()
 
-    assert notified_count == MAX_JOBS_PER_MESSAGE
+    assert notified_count == fake_settings.MAX_JOBS_PER_MESSAGE
     assert unnotified_count == 5
+
+
+def test_max_jobs_per_message_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.MAX_JOBS_PER_MESSAGE == 10

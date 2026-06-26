@@ -18,7 +18,9 @@ async def scrape(config: Settings) -> list[Job]:
             headers={"User-Agent": "WorkSearcher/1.0"},
             timeout=config.HTTP_TIMEOUT_SECONDS,
         ) as client:
-            response = await client.get(HIMALAYAS_API, params={"limit": 50})
+            response = await client.get(
+                HIMALAYAS_API, params={"limit": config.HIMALAYAS_RESULTS_LIMIT}
+            )
             response.raise_for_status()
             data = response.json()
 
