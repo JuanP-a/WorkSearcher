@@ -37,17 +37,55 @@ sudo -u worksearcher crontab -e   # pegar línea de crontab.example
 
 ## Variables de entorno relevantes
 
+Ver `.env.example` para la referencia completa con comentarios.
+
+### Selección de plataformas
+
 | Variable | Default | Descripción |
 |----------|---------|-------------|
-| `SEARCH_KEYWORDS` | 23 términos | Filtro post-scraping aplicado a todos los scrapers |
-| `JOBSPY_SEARCH_TERMS` | 5 términos | Query enviada a LinkedIn/Indeed/Glassdoor (máx 5) |
+| `ENABLED_SCRAPERS` | todos (9) | Lista separada por comas de scrapers activos |
+
+### jobspy (LinkedIn / Indeed / Glassdoor)
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `JOBSPY_SEARCH_TERMS` | 5 términos | Query enviada a jobspy (máx 5 términos) |
+| `JOBSPY_SITES` | `linkedin,indeed,glassdoor` | Plataformas que jobspy consulta |
+| `SEARCH_LOCATION` | `Remote` | Alcance geográfico (ej. `"Mexico City"`) |
+| `JOBSPY_RESULTS_WANTED` | `50` | Resultados máximos por plataforma por ejecución |
+| `JOBSPY_HOURS_OLD` | `24` | Solo jobs publicados en las últimas N horas |
+
+### Scrapers LatAm
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `BUMERAN_SEARCH_TERMS` | 5 términos ES | Términos de búsqueda para Bumeran MX |
+| `COMPUTRABAJO_SEARCH_TERMS` | 5 términos ES | Términos de búsqueda para Computrabajo MX |
+
+### Filtros post-scraping
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `SEARCH_KEYWORDS` | 23 términos | Filtro aplicado a todos los scrapers |
 | `MAX_YEARS_EXPERIENCE` | `3` | Jobs que piden más años son descartados |
 | `MAX_JOB_AGE_DAYS` | `30` | Jobs con `posted_at` mayor a N días son descartados |
 | `BLACKLIST_KEYWORDS` | 18 términos | Keywords en título/descripción que descartan el job |
 | `FILTER_LANGUAGES` | `en,es` | Idiomas permitidos (ISO 639-1, comma-separated) |
 | `MIN_SALARY_USD_MONTHLY` | vacío | Salario mínimo mensual en USD; vacío = sin filtro |
+
+### Notificaciones y rendimiento
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `MAX_JOBS_PER_MESSAGE` | `10` | Máx. empleos por mensaje WhatsApp |
+| `HTTP_TIMEOUT_SECONDS` | `30` | Timeout HTTP para scrapers httpx |
+| `SCRAPER_TIMEOUT_SECONDS` | `120` | Timeout por scraper en el pipeline |
+
+### Almacenamiento
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
 | `DB_PATH` | `worksearcher.db` | Path a la BD SQLite; en VPS usar `/var/lib/worksearcher/worksearcher.db` |
-| `SCRAPE_INTERVAL_HOURS` | `4` | Referencia para configurar cron |
 
 ## Docs
 

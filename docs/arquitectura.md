@@ -72,7 +72,7 @@ class Job(BaseModel):
 ## Pipeline Flow
 
 1. cron triggers `python -m worksearcher run`
-2. All scrapers run concurrently (`asyncio.gather`, 120s timeout per scraper)
+2. All scrapers run concurrently (`asyncio.gather`, `SCRAPER_TIMEOUT_SECONDS` timeout per scraper, default 120s)
 3. Results merged into flat list of `Job` objects
 4. Filter pipeline (all configurable via `.env`):
    - Keywords match (dev OR cyber OR automation) AND `is_remote=True`

@@ -38,7 +38,7 @@ Extracción best-effort desde el card parent HTML; warning cuando no se encuentr
 Fuentes desconocidas emiten warning y se omiten en lugar de atribuirse a LinkedIn.
 
 ### BACK-10 — Sin timeout por scraper ✓
-`asyncio.wait_for(scraper(config), timeout=120)` por scraper. Un navegador colgado no bloquea el pipeline.
+`asyncio.wait_for(scraper(config), timeout=config.SCRAPER_TIMEOUT_SECONDS)` por scraper (default 120s, configurable via `.env`). Un navegador colgado no bloquea el pipeline.
 
 ### BACK-11 — Dependencias sin lockfile ✓
 `requirements.lock` generado con versiones exactas de los 39 paquetes.

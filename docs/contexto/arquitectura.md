@@ -67,7 +67,7 @@ tests/                ← pytest; un archivo por módulo
 cron (cada 4h)
     └─▶ main._run_pipeline(config)
             │
-            ├─▶ [9 scrapers concurrentes — asyncio.gather, 120s timeout cada uno]
+            ├─▶ [scrapers activos (ENABLED_SCRAPERS) — asyncio.gather, SCRAPER_TIMEOUT_SECONDS timeout]
             │       └─▶ list[Job]  (cada scraper devuelve [] si falla)
             │
             ├─▶ filter_jobs(all_jobs, config.*)
