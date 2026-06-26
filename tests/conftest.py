@@ -29,6 +29,8 @@ class FakeSettings:
         "himalayas",
         "hackernews",
     ]
+    bumeran_search_terms_list = ["desarrollador", "programador"]
+    computrabajo_search_terms_list = ["desarrollador", "programador"]
 
 
 @pytest.fixture

@@ -22,7 +22,11 @@ def _blocking_scrape(config: Settings) -> list[Job]:
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
-            args=["--disable-blink-features=AutomationControlled", "--disable-gpu", "--disable-dev-shm-usage"],
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--disable-gpu",
+                "--disable-dev-shm-usage",
+            ],
         )
         context = browser.new_context(
             user_agent=(
@@ -37,7 +41,7 @@ def _blocking_scrape(config: Settings) -> list[Job]:
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
         )
 
-        for keyword in config.keywords_list[:5]:
+        for keyword in config.computrabajo_search_terms_list:
             # Fresh page per keyword so a CAPTCHA or 403 on one keyword doesn't
             # corrupt the browser state for the rest of the run
             page = context.new_page()
@@ -82,14 +86,16 @@ def _blocking_scrape(config: Settings) -> list[Job]:
                         if not any(m in article_text for m in _REMOTE_MARKERS):
                             continue
 
-                        jobs.append(Job(
-                            title=title,
-                            company=company,
-                            location="Remote",
-                            url=job_url,
-                            source=JobSource.COMPUTRABAJO,
-                            is_remote=True,
-                        ))
+                        jobs.append(
+                            Job(
+                                title=title,
+                                company=company,
+                                location="Remote",
+                                url=job_url,
+                                source=JobSource.COMPUTRABAJO,
+                                is_remote=True,
+                            )
+                        )
                     except Exception as exc:
                         logger.warning("Computrabajo: skipping malformed card: %s", exc)
                         continue

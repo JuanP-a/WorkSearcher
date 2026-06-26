@@ -42,6 +42,14 @@ class Settings(BaseSettings):
         "jobspy,remoteok,remotive,wwr,cybersecjobs,computrabajo,bumeran,himalayas,hackernews"
     )
 
+    # Spanish search terms for LatAm scrapers (Bumeran, Computrabajo)
+    BUMERAN_SEARCH_TERMS: str = (
+        "desarrollador,programador,backend,ciberseguridad,seguridad informatica"
+    )
+    COMPUTRABAJO_SEARCH_TERMS: str = (
+        "desarrollador,programador,backend,ciberseguridad,seguridad informatica"
+    )
+
     SCRAPE_INTERVAL_HOURS: int = 4
     MAX_YEARS_EXPERIENCE: int = 3
 
@@ -100,6 +108,14 @@ class Settings(BaseSettings):
     @property
     def enabled_scrapers_list(self) -> list[str]:
         return [n.strip().lower() for n in self.ENABLED_SCRAPERS.split(",") if n.strip()]
+
+    @property
+    def bumeran_search_terms_list(self) -> list[str]:
+        return [t.strip().lower() for t in self.BUMERAN_SEARCH_TERMS.split(",") if t.strip()]
+
+    @property
+    def computrabajo_search_terms_list(self) -> list[str]:
+        return [t.strip().lower() for t in self.COMPUTRABAJO_SEARCH_TERMS.split(",") if t.strip()]
 
     @property
     def blacklist_list(self) -> list[str]:
