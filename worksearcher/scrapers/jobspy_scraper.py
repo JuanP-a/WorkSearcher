@@ -20,11 +20,11 @@ async def scrape(config: Settings) -> list[Job]:
 
         def _blocking_scrape() -> list[Job]:
             results = scrape_jobs(
-                site_name=["linkedin", "indeed", "glassdoor"],
+                site_name=config.jobspy_sites_list,
                 search_term=" OR ".join(config.jobspy_terms_list),
-                location="Remote",
-                results_wanted=50,
-                hours_old=24,
+                location=config.SEARCH_LOCATION,
+                results_wanted=config.JOBSPY_RESULTS_WANTED,
+                hours_old=config.JOBSPY_HOURS_OLD,
                 is_remote=True,
             )
             jobs = []

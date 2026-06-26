@@ -746,3 +746,17 @@ def test_computrabajo_search_terms_config_field_exists():
         "ciberseguridad",
         "seguridad informatica",
     ]
+
+
+def test_jobspy_config_fields_exist():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.jobspy_sites_list == ["linkedin", "indeed", "glassdoor"]
+    assert s.JOBSPY_RESULTS_WANTED == 50
+    assert s.JOBSPY_HOURS_OLD == 24
+    assert s.SEARCH_LOCATION == "Remote"

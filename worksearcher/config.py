@@ -50,6 +50,12 @@ class Settings(BaseSettings):
         "desarrollador,programador,backend,ciberseguridad,seguridad informatica"
     )
 
+    # jobspy (LinkedIn / Indeed / Glassdoor) tuning
+    JOBSPY_SITES: str = "linkedin,indeed,glassdoor"
+    JOBSPY_RESULTS_WANTED: int = 50
+    JOBSPY_HOURS_OLD: int = 24
+    SEARCH_LOCATION: str = "Remote"
+
     SCRAPE_INTERVAL_HOURS: int = 4
     MAX_YEARS_EXPERIENCE: int = 3
 
@@ -116,6 +122,10 @@ class Settings(BaseSettings):
     @property
     def computrabajo_search_terms_list(self) -> list[str]:
         return [t.strip().lower() for t in self.COMPUTRABAJO_SEARCH_TERMS.split(",") if t.strip()]
+
+    @property
+    def jobspy_sites_list(self) -> list[str]:
+        return [s.strip().lower() for s in self.JOBSPY_SITES.split(",") if s.strip()]
 
     @property
     def blacklist_list(self) -> list[str]:
