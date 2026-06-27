@@ -802,7 +802,6 @@ def test_occ_search_terms_config_field_exists():
 
 
 def test_occ_known_scraper_registered_in_config():
-    import pytest
     from pydantic import ValidationError
 
     from worksearcher.config import Settings

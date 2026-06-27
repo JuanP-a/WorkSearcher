@@ -30,78 +30,79 @@ def _blocking_scrape(config: Settings) -> list[Job]:
                 "--disable-dev-shm-usage",
             ],
         )
-        context = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (X11; Linux x86_64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            ),
-            viewport={"width": 1280, "height": 800},
-            locale="es-MX",
-        )
-        context.add_init_script(
-            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-        )
+        try:
+            context = browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (X11; Linux x86_64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                ),
+                viewport={"width": 1280, "height": 800},
+                locale="es-MX",
+            )
+            context.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+            )
 
-        for term in config.occ_search_terms_list:
-            page = context.new_page()
-            try:
-                url = _build_url(term)
-                logger.debug("OCC: fetching %s", url)
-                page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-
-                if "403" in page.title() or "Forbidden" in page.title():
-                    logger.warning("OCC: 403 received — skipping remaining terms")
-                    page.close()
-                    break
-
+            for term in config.occ_search_terms_list:
+                page = context.new_page()
                 try:
-                    # OCC individual job URLs use /empleo/ (singular)
-                    page.wait_for_selector("a[href*='/empleo/']", timeout=10_000)
-                except PWTimeout:
-                    logger.warning("OCC: no job cards loaded for '%s'", term)
-                    page.close()
-                    continue
+                    url = _build_url(term)
+                    logger.debug("OCC: fetching %s", url)
+                    page.goto(url, wait_until="domcontentloaded", timeout=30_000)
 
-                job_links = page.query_selector_all("a[href*='/empleo/']")
-                for link in job_links:
+                    if "403" in page.title() or "Forbidden" in page.title():
+                        logger.warning("OCC: 403 received — skipping remaining terms")
+                        break
+
                     try:
-                        href = link.get_attribute("href") or ""
-                        if not href or href in seen_urls:
-                            continue
-
-                        job_url = href if href.startswith("http") else f"{_BASE_URL}{href}"
-                        seen_urls.add(href)
-
-                        raw = link.inner_text().strip()
-                        lines = [ln.strip() for ln in raw.split("\n") if ln.strip()]
-
-                        title = next((ln for ln in lines if len(ln) > 3), "")
-                        company_idx = lines.index(title) + 1 if title in lines else -1
-                        company = lines[company_idx] if 0 < company_idx < len(lines) else ""
-
-                        if not title:
-                            continue
-
-                        jobs.append(
-                            Job(
-                                title=title,
-                                company=company,
-                                location="Remote",
-                                url=job_url,
-                                source=JobSource.OCC,
-                                is_remote=True,
-                            )
-                        )
-                    except Exception as exc:
-                        logger.warning("OCC: skipping malformed link: %s", exc)
+                        # OCC individual job URLs use /empleo/ (singular)
+                        page.wait_for_selector("a[href*='/empleo/']", timeout=10_000)
+                    except PWTimeout:
+                        logger.warning("OCC: no job cards loaded for '%s'", term)
                         continue
 
-            except Exception as exc:
-                logger.warning("OCC: term '%s' failed: %s", term, exc)
-            finally:
-                page.close()
+                    job_links = page.query_selector_all("a[href*='/empleo/']")
+                    for link in job_links:
+                        try:
+                            href = link.get_attribute("href") or ""
+                            if not href or href in seen_urls:
+                                continue
 
-        browser.close()
+                            job_url = href if href.startswith("http") else f"{_BASE_URL}{href}"
+                            seen_urls.add(href)
+
+                            raw = link.inner_text().strip()
+                            lines = [ln.strip() for ln in raw.split("\n") if ln.strip()]
+
+                            # OCC links may contain short UI strings before the title;
+                            # > 3 chars filters badges/icons without hiding 4-char titles
+                            title = next((ln for ln in lines if len(ln) > 3), "")
+                            company_idx = lines.index(title) + 1 if title in lines else -1
+                            company = lines[company_idx] if 0 < company_idx < len(lines) else ""
+
+                            if not title:
+                                continue
+
+                            jobs.append(
+                                Job(
+                                    title=title,
+                                    company=company,
+                                    location="Remote",
+                                    url=job_url,
+                                    source=JobSource.OCC,
+                                    is_remote=True,
+                                )
+                            )
+                        except Exception as exc:
+                            logger.warning("OCC: skipping malformed link: %s", exc)
+                            continue
+
+                except Exception as exc:
+                    logger.warning("OCC: term '%s' failed: %s", term, exc)
+                finally:
+                    page.close()
+        finally:
+            browser.close()
 
     return jobs
 
