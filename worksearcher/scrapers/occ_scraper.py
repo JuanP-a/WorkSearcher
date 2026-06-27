@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import threading
 
 from worksearcher.config import Settings
 from worksearcher.core.models import Job, JobSource
@@ -14,7 +15,7 @@ def _build_url(term: str) -> str:
     return f"{_BASE_URL}/empleos/de-{slugify(term)}/tipo-home-office-remoto/"
 
 
-def _blocking_scrape(config: Settings) -> list[Job]:
+def _blocking_scrape(config: Settings, stop: threading.Event | None = None) -> list[Job]:
     from playwright.sync_api import TimeoutError as PWTimeout
     from playwright.sync_api import sync_playwright
 
@@ -44,6 +45,9 @@ def _blocking_scrape(config: Settings) -> list[Job]:
             )
 
             for term in config.occ_search_terms_list:
+                if stop and stop.is_set():
+                    logger.warning("OCC: scrape cancelled before term '%s'", term)
+                    break
                 page = context.new_page()
                 try:
                     url = _build_url(term)
@@ -108,10 +112,16 @@ def _blocking_scrape(config: Settings) -> list[Job]:
 
 
 async def scrape(config: Settings) -> list[Job]:
+    logger.info("OCC: starting scrape for %d terms", len(config.occ_search_terms_list))
+    stop = threading.Event()
     try:
-        jobs = await asyncio.to_thread(_blocking_scrape, config)
+        jobs = await asyncio.to_thread(_blocking_scrape, config, stop)
         logger.info("OCC: %d jobs found", len(jobs))
         return jobs
+    except asyncio.CancelledError:
+        # Signal the Playwright thread to stop starting new terms after wait_for cancels us.
+        stop.set()
+        raise
     except Exception as exc:
         logger.error("OCC scraper failed: %s", exc)
         return []
