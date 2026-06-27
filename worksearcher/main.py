@@ -80,7 +80,7 @@ async def _run_pipeline(config: Settings) -> None:
             all_jobs.extend(result)
     logger.info("Scraped: %d total jobs", len(all_jobs))
 
-    # Filter by keywords + remote + experience cap + date + blacklist + language + salary
+    require_remote = not config.SEARCH_LOCAL_ENABLED
     relevant = filter_jobs(
         all_jobs,
         config.keywords_list,
@@ -89,6 +89,7 @@ async def _run_pipeline(config: Settings) -> None:
         blacklist=config.blacklist_list,
         allowed_languages=config.filter_languages_list,
         min_salary_usd_monthly=config.MIN_SALARY_USD_MONTHLY,
+        require_remote=require_remote,
     )
     logger.info(
         "Relevant: %d jobs after filters (keywords + experience + date + blacklist + language + salary)",

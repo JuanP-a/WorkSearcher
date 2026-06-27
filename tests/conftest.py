@@ -41,6 +41,14 @@ class FakeSettings:
     HIMALAYAS_RESULTS_LIMIT = 50
     MAX_JOBS_PER_MESSAGE = 10
     SCRAPER_TIMEOUT_SECONDS = 120
+    SEARCH_LOCAL_ENABLED = False
+    MX_SEARCH_CITY = ""
+    MX_SEARCH_STATE = ""
+
+    @property
+    def local_location(self) -> str:
+        parts = [p.strip().title() for p in (self.MX_SEARCH_CITY, self.MX_SEARCH_STATE) if p.strip()]
+        return ", ".join(parts) if parts else ""
 
 
 @pytest.fixture

@@ -16,16 +16,16 @@ _SOURCE_MAP: dict[str, JobSource] = {
 
 async def scrape(config: Settings) -> list[Job]:
     try:
-        from jobspy import scrape_jobs  # import here — jobspy is slow to import
+        from jobspy import scrape_jobs
 
-        def _blocking_scrape() -> list[Job]:
+        def _blocking_scrape(location: str, is_remote: bool) -> list[Job]:
             results = scrape_jobs(
                 site_name=config.jobspy_sites_list,
                 search_term=" OR ".join(config.jobspy_terms_list),
-                location=config.SEARCH_LOCATION,
+                location=location,
                 results_wanted=config.JOBSPY_RESULTS_WANTED,
                 hours_old=config.JOBSPY_HOURS_OLD,
-                is_remote=True,
+                is_remote=is_remote,
             )
             jobs = []
             for _, row in results.iterrows():
@@ -54,7 +54,7 @@ async def scrape(config: Settings) -> list[Job]:
                         location=str(row.get("location", "Remote")),
                         url=str(row.get("job_url", "")),
                         source=source,
-                        is_remote=True,
+                        is_remote=is_remote,
                         description=str(row.get("description", "") or ""),
                         posted_at=posted_at,
                     )
@@ -64,10 +64,24 @@ async def scrape(config: Settings) -> list[Job]:
                     continue
             return jobs
 
-        # jobspy uses requests (sync) internally — run in thread pool
-        jobs = await asyncio.to_thread(_blocking_scrape)
-        logger.info("jobspy: %d jobs found", len(jobs))
-        return jobs
+        all_jobs: list[Job] = []
+
+        # Remote pass
+        remote_jobs = await asyncio.to_thread(
+            _blocking_scrape, config.SEARCH_LOCATION, True
+        )
+        all_jobs.extend(remote_jobs)
+        logger.info("jobspy (remote): %d jobs found", len(remote_jobs))
+
+        # Local pass — when SEARCH_LOCAL_ENABLED, also query with city location
+        if config.SEARCH_LOCAL_ENABLED and config.local_location:
+            local_jobs = await asyncio.to_thread(
+                _blocking_scrape, config.local_location, False
+            )
+            all_jobs.extend(local_jobs)
+            logger.info("jobspy (local): %d jobs found", len(local_jobs))
+
+        return all_jobs
 
     except Exception as exc:
         logger.error("jobspy scraper failed: %s", exc)

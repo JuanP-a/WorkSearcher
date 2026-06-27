@@ -57,6 +57,14 @@ class Settings(BaseSettings):
     JOBSPY_RESULTS_WANTED: int = 50
     JOBSPY_HOURS_OLD: int = 24
     SEARCH_LOCATION: str = "Remote"
+
+    # Local / on-site search toggle — enables Celaya/Guanajuato area jobs
+    # alongside remote ones. When True, MX scrapers + jobspy also query for
+    # on-site positions in MX_SEARCH_CITY.
+    SEARCH_LOCAL_ENABLED: bool = False
+    MX_SEARCH_CITY: str = ""  # lowercase, e.g. "celaya"
+    MX_SEARCH_STATE: str = ""  # lowercase, e.g. "guanajuato"
+
     HTTP_TIMEOUT_SECONDS: int = 30
     HIMALAYAS_RESULTS_LIMIT: int = 50
     MAX_JOBS_PER_MESSAGE: int = 10
@@ -144,3 +152,9 @@ class Settings(BaseSettings):
     @property
     def filter_languages_list(self) -> list[str]:
         return [lang.strip().lower() for lang in self.FILTER_LANGUAGES.split(",") if lang.strip()]
+
+    @property
+    def local_location(self) -> str:
+        """Location string for jobspy when SEARCH_LOCAL_ENABLED, e.g. 'Celaya, Guanajuato'."""
+        parts = [p.strip().title() for p in (self.MX_SEARCH_CITY, self.MX_SEARCH_STATE) if p.strip()]
+        return ", ".join(parts) if parts else ""

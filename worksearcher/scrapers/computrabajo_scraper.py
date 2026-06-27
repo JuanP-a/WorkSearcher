@@ -1,3 +1,5 @@
+"""Computrabajo scraper — remote + local (Celaya) jobs for Mexico."""
+
 import asyncio
 import logging
 
@@ -12,12 +14,80 @@ _BASE_URL = "https://mx.computrabajo.com"
 _REMOTE_MARKERS = {"remoto", "home office", "teletrabajo"}
 
 
-def _blocking_scrape(config: Settings) -> list[Job]:
+def _build_url(keyword: str, city: str = "") -> str:
+    base = f"{_BASE_URL}/trabajo-de-{slugify(keyword)}"
+    return f"{base}/en-{slugify(city)}" if city else base
+
+
+def _scrape_keyword(
+    page,
+    keyword: str,
+    city: str,
+    is_remote: bool,
+    seen_urls: set[str],
+) -> list[Job]:
     from playwright.sync_api import TimeoutError as PWTimeout
+
+    jobs: list[Job] = []
+    url = _build_url(keyword, city)
+    logger.debug("Computrabajo: fetching %s", url)
+    page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+
+    if "403" in page.title() or "Forbidden" in page.title():
+        raise RuntimeError("403 received — aborting")
+
+    try:
+        page.wait_for_selector("article.box_offer", timeout=10_000)
+    except PWTimeout:
+        logger.warning("Computrabajo: no job cards loaded for '%s'", keyword)
+        return jobs
+
+    for article in page.query_selector_all("article.box_offer"):
+        try:
+            title_el = article.query_selector("h2 a")
+            company_el = article.query_selector("p.dFlex a")
+            link_el = article.query_selector("h2 a")
+
+            title = title_el.inner_text().strip() if title_el else ""
+            company = company_el.inner_text().strip() if company_el else ""
+            href = link_el.get_attribute("href") if link_el else ""
+
+            if not title or not href:
+                continue
+
+            job_url = f"{_BASE_URL}{href}" if href.startswith("/") else href
+            if job_url in seen_urls:
+                continue
+            seen_urls.add(job_url)
+
+            article_text = article.inner_text().lower()
+            if not city:
+                if not any(m in article_text for m in _REMOTE_MARKERS):
+                    continue
+
+            jobs.append(
+                Job(
+                    title=title,
+                    company=company,
+                    location=city.title() if city else "Remote",
+                    url=job_url,
+                    source=JobSource.COMPUTRABAJO,
+                    is_remote=is_remote,
+                )
+            )
+        except Exception as exc:
+            logger.warning("Computrabajo: skipping malformed card: %s", exc)
+            continue
+
+    return jobs
+
+
+def _blocking_scrape(config: Settings) -> list[Job]:
     from playwright.sync_api import sync_playwright
 
     jobs: list[Job] = []
     seen_urls: set[str] = set()
+    local_city = config.MX_SEARCH_CITY.strip().lower() if config.SEARCH_LOCAL_ENABLED else ""
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -36,74 +106,42 @@ def _blocking_scrape(config: Settings) -> list[Job]:
             viewport={"width": 1280, "height": 800},
             locale="es-MX",
         )
-        # Hide webdriver fingerprint
         context.add_init_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
         )
 
         for keyword in config.computrabajo_search_terms_list:
-            # Fresh page per keyword so a CAPTCHA or 403 on one keyword doesn't
-            # corrupt the browser state for the rest of the run
             page = context.new_page()
             try:
-                url = f"{_BASE_URL}/trabajo-de-{slugify(keyword)}"
-                logger.debug("Computrabajo: fetching %s", url)
-                page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-
-                if "403" in page.title() or "Forbidden" in page.title():
-                    logger.warning("Computrabajo: 403 received — skipping remaining keywords")
-                    page.close()
-                    break
-
-                try:
-                    page.wait_for_selector("article.box_offer", timeout=10_000)
-                except PWTimeout:
-                    logger.warning("Computrabajo: no job cards loaded for '%s'", keyword)
-                    page.close()
-                    continue
-
-                for article in page.query_selector_all("article.box_offer"):
-                    try:
-                        # Title is the <a> inside <h2> — avoids "Vista" tag text
-                        title_el = article.query_selector("h2 a")
-                        # Company is the first <a> inside the first <p class="dFlex">
-                        company_el = article.query_selector("p.dFlex a")
-                        link_el = article.query_selector("h2 a")
-
-                        title = title_el.inner_text().strip() if title_el else ""
-                        company = company_el.inner_text().strip() if company_el else ""
-                        href = link_el.get_attribute("href") if link_el else ""
-
-                        if not title or not href:
-                            continue
-
-                        job_url = f"{_BASE_URL}{href}" if href.startswith("/") else href
-                        if job_url in seen_urls:
-                            continue
-                        seen_urls.add(job_url)
-
-                        article_text = article.inner_text().lower()
-                        if not any(m in article_text for m in _REMOTE_MARKERS):
-                            continue
-
-                        jobs.append(
-                            Job(
-                                title=title,
-                                company=company,
-                                location="Remote",
-                                url=job_url,
-                                source=JobSource.COMPUTRABAJO,
-                                is_remote=True,
-                            )
-                        )
-                    except Exception as exc:
-                        logger.warning("Computrabajo: skipping malformed card: %s", exc)
-                        continue
-
+                # Remote pass
+                jobs.extend(
+                    _scrape_keyword(page, keyword, city="", is_remote=True, seen_urls=seen_urls)
+                )
+            except RuntimeError as exc:
+                logger.warning("Computrabajo (remote): %s — skipping remaining keywords", exc)
+                page.close()
+                break
             except Exception as exc:
-                logger.warning("Computrabajo: keyword '%s' failed: %s", keyword, exc)
+                logger.warning("Computrabajo: keyword '%s' remote failed: %s", keyword, exc)
             finally:
                 page.close()
+
+            if local_city:
+                page = context.new_page()
+                try:
+                    jobs.extend(
+                        _scrape_keyword(
+                            page, keyword, city=local_city, is_remote=False, seen_urls=seen_urls
+                        )
+                    )
+                except RuntimeError as exc:
+                    logger.warning("Computrabajo (local): %s — skipping remaining keywords", exc)
+                    page.close()
+                    break
+                except Exception as exc:
+                    logger.warning("Computrabajo: keyword '%s' local failed: %s", keyword, exc)
+                finally:
+                    page.close()
 
         browser.close()
 
