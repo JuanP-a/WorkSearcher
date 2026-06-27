@@ -27,6 +27,7 @@ Buscador de empleos automatizado para un ingeniero en sistemas (dev + cibersegur
 | HackerNews "Who's Hiring" | Algolia API | Global dev |
 | Computrabajo | playwright scraping | LatAm |
 | Bumeran | playwright scraping | LatAm |
+| OCC | playwright scraping | LatAm (MX) |
 | CyberSecJobs | httpx + BS4 | Global cyber |
 | We Work Remotely | httpx + BS4 | Global remoto |
 
@@ -43,6 +44,8 @@ Cuatro campos configurables — ver `worksearcher/config.py` y `.env.example`:
 - **`BUMERAN_SEARCH_TERMS`** (términos en español para Bumeran MX):
   - Default: desarrollador, programador, backend, ciberseguridad, seguridad informatica
 - **`COMPUTRABAJO_SEARCH_TERMS`** (términos en español para Computrabajo MX):
+  - Default: desarrollador, programador, backend, ciberseguridad, seguridad informatica
+- **`OCC_SEARCH_TERMS`** (términos en español para OCC MX):
   - Default: desarrollador, programador, backend, ciberseguridad, seguridad informatica
 - **Siempre**: remote (todos los resultados deben ser remotos — enforced en `filters.py`)
 

@@ -35,11 +35,12 @@ class Settings(BaseSettings):
             "bumeran",
             "himalayas",
             "hackernews",
+            "occ",
         }
     )
 
     ENABLED_SCRAPERS: str = (
-        "jobspy,remoteok,remotive,wwr,cybersecjobs,computrabajo,bumeran,himalayas,hackernews"
+        "jobspy,remoteok,remotive,wwr,cybersecjobs,computrabajo,bumeran,himalayas,hackernews,occ"
     )
 
     # Spanish search terms for LatAm scrapers (Bumeran, Computrabajo)
@@ -49,6 +50,7 @@ class Settings(BaseSettings):
     COMPUTRABAJO_SEARCH_TERMS: str = (
         "desarrollador,programador,backend,ciberseguridad,seguridad informatica"
     )
+    OCC_SEARCH_TERMS: str = "desarrollador,programador,backend,ciberseguridad,seguridad informatica"
 
     # jobspy (LinkedIn / Indeed / Glassdoor) tuning
     JOBSPY_SITES: str = "linkedin,indeed,glassdoor"
@@ -126,6 +128,10 @@ class Settings(BaseSettings):
     @property
     def computrabajo_search_terms_list(self) -> list[str]:
         return [t.strip().lower() for t in self.COMPUTRABAJO_SEARCH_TERMS.split(",") if t.strip()]
+
+    @property
+    def occ_search_terms_list(self) -> list[str]:
+        return [t.strip().lower() for t in self.OCC_SEARCH_TERMS.split(",") if t.strip()]
 
     @property
     def jobspy_sites_list(self) -> list[str]:

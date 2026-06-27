@@ -17,6 +17,7 @@ from worksearcher.scrapers import (
     hackernews_scraper,
     himalayas_scraper,
     jobspy_scraper,
+    occ_scraper,
     remoteok_scraper,
     remotive_scraper,
     wwr_scraper,
@@ -46,6 +47,7 @@ _ALL_SCRAPERS: dict[str, Callable[[Settings], Coroutine[None, None, list[Job]]]]
     "bumeran": bumeran_scraper.scrape,
     "himalayas": himalayas_scraper.scrape,
     "hackernews": hackernews_scraper.scrape,
+    "occ": occ_scraper.scrape,
 }
 
 

@@ -782,3 +782,77 @@ def test_himalayas_results_limit_config_field_exists():
         META_RECIPIENT_PHONE="x",
     )
     assert s.HIMALAYAS_RESULTS_LIMIT == 50
+
+
+def test_occ_search_terms_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.occ_search_terms_list == [
+        "desarrollador",
+        "programador",
+        "backend",
+        "ciberseguridad",
+        "seguridad informatica",
+    ]
+
+
+def test_occ_known_scraper_registered_in_config():
+    from pydantic import ValidationError
+
+    from worksearcher.config import Settings
+
+    # "occ" must be accepted as a valid scraper name
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+        ENABLED_SCRAPERS="occ",
+    )
+    assert "occ" in s.enabled_scrapers_list
+
+    # unknown name must still be rejected
+    with pytest.raises(ValidationError, match="Unknown scrapers"):
+        Settings(
+            META_PHONE_NUMBER_ID="x",
+            META_ACCESS_TOKEN="x",
+            META_RECIPIENT_PHONE="x",
+            ENABLED_SCRAPERS="occ,notareal",
+        )
+
+
+# --- OCC: URL builder (pure function, testable without Playwright) ---
+
+
+def test_occ_build_url_simple_term():
+    from worksearcher.scrapers.occ_scraper import _build_url
+
+    url = _build_url("desarrollador")
+    assert url == "https://www.occ.com.mx/empleos/de-desarrollador/tipo-home-office-remoto/"
+
+
+def test_occ_build_url_multi_word_term():
+    from worksearcher.scrapers.occ_scraper import _build_url
+
+    url = _build_url("seguridad informatica")
+    assert url == "https://www.occ.com.mx/empleos/de-seguridad-informatica/tipo-home-office-remoto/"
+
+
+def test_occ_build_url_uppercase_normalized():
+    from worksearcher.scrapers.occ_scraper import _build_url
+
+    url = _build_url("Ciberseguridad")
+    assert url == "https://www.occ.com.mx/empleos/de-ciberseguridad/tipo-home-office-remoto/"
+
+
+def test_occ_no_remote_markers_constant():
+    """OCC filters remote server-side via URL path — no _REMOTE_MARKERS needed."""
+    import worksearcher.scrapers.occ_scraper as mod
+
+    assert not hasattr(mod, "_REMOTE_MARKERS"), (
+        "_REMOTE_MARKERS must not exist in occ_scraper — remote is filtered by URL path"
+    )
