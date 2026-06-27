@@ -824,3 +824,36 @@ def test_occ_known_scraper_registered_in_config():
             META_RECIPIENT_PHONE="x",
             ENABLED_SCRAPERS="occ,notareal",
         )
+
+
+# --- OCC: URL builder (pure function, testable without Playwright) ---
+
+
+def test_occ_build_url_simple_term():
+    from worksearcher.scrapers.occ_scraper import _build_url
+
+    url = _build_url("desarrollador")
+    assert url == "https://www.occ.com.mx/empleos/de-desarrollador/tipo-home-office-remoto/"
+
+
+def test_occ_build_url_multi_word_term():
+    from worksearcher.scrapers.occ_scraper import _build_url
+
+    url = _build_url("seguridad informatica")
+    assert url == "https://www.occ.com.mx/empleos/de-seguridad-informatica/tipo-home-office-remoto/"
+
+
+def test_occ_build_url_uppercase_normalized():
+    from worksearcher.scrapers.occ_scraper import _build_url
+
+    url = _build_url("Ciberseguridad")
+    assert url == "https://www.occ.com.mx/empleos/de-ciberseguridad/tipo-home-office-remoto/"
+
+
+def test_occ_no_remote_markers_constant():
+    """OCC filters remote server-side via URL path — no _REMOTE_MARKERS needed."""
+    import worksearcher.scrapers.occ_scraper as mod
+
+    assert not hasattr(mod, "_REMOTE_MARKERS"), (
+        "_REMOTE_MARKERS must not exist in occ_scraper — remote is filtered by URL path"
+    )
