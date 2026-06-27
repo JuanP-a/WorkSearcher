@@ -25,19 +25,21 @@ def _scrape_keyword(
     city: str,
     is_remote: bool,
     seen_urls: set[str],
+    page_timeout_ms: int,
+    selector_timeout_ms: int,
 ) -> list[Job]:
     from playwright.sync_api import TimeoutError as PWTimeout
 
     jobs: list[Job] = []
     url = _build_url(keyword, city)
     logger.debug("Computrabajo: fetching %s", url)
-    page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+    page.goto(url, wait_until="domcontentloaded", timeout=page_timeout_ms)
 
     if "403" in page.title() or "Forbidden" in page.title():
         raise RuntimeError("403 received — aborting")
 
     try:
-        page.wait_for_selector("article.box_offer", timeout=10_000)
+        page.wait_for_selector("article.box_offer", timeout=selector_timeout_ms)
     except PWTimeout:
         logger.warning("Computrabajo: no job cards loaded for '%s'", keyword)
         return jobs
@@ -111,11 +113,17 @@ def _blocking_scrape(config: Settings) -> list[Job]:
         )
 
         for keyword in config.computrabajo_search_terms_list:
+            pt = config.PLAYWRIGHT_PAGE_LOAD_TIMEOUT_MS
+            st = config.PLAYWRIGHT_SELECTOR_TIMEOUT_MS
+
             page = context.new_page()
             try:
                 # Remote pass
                 jobs.extend(
-                    _scrape_keyword(page, keyword, city="", is_remote=True, seen_urls=seen_urls)
+                    _scrape_keyword(
+                        page, keyword, city="", is_remote=True,
+                        seen_urls=seen_urls, page_timeout_ms=pt, selector_timeout_ms=st,
+                    )
                 )
             except RuntimeError as exc:
                 logger.warning("Computrabajo (remote): %s — skipping remaining keywords", exc)
@@ -131,7 +139,8 @@ def _blocking_scrape(config: Settings) -> list[Job]:
                 try:
                     jobs.extend(
                         _scrape_keyword(
-                            page, keyword, city=local_city, is_remote=False, seen_urls=seen_urls
+                            page, keyword, city=local_city, is_remote=False,
+                            seen_urls=seen_urls, page_timeout_ms=pt, selector_timeout_ms=st,
                         )
                     )
                 except RuntimeError as exc:

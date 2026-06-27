@@ -25,13 +25,15 @@ def _scrape_term(
     city: str,
     is_remote: bool,
     seen_urls: set[str],
+    page_timeout_ms: int,
+    selector_timeout_ms: int,
 ) -> list[Job]:
     jobs: list[Job] = []
     url = _build_url(term, city)
     logger.debug("Bumeran: fetching %s", url)
-    page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+    page.goto(url, wait_until="domcontentloaded", timeout=page_timeout_ms)
     try:
-        page.wait_for_selector("a[href*='/empleos/']", timeout=10_000)
+        page.wait_for_selector("a[href*='/empleos/']", timeout=selector_timeout_ms)
     except Exception:
         logger.warning("Bumeran: no job links found for '%s'", term)
         return jobs
@@ -107,9 +109,15 @@ def _blocking_scrape(config: Settings) -> list[Job]:
             page = context.new_page()
 
             for term in config.bumeran_search_terms_list:
+                pt = config.PLAYWRIGHT_PAGE_LOAD_TIMEOUT_MS
+                st = config.PLAYWRIGHT_SELECTOR_TIMEOUT_MS
+
                 try:
                     jobs.extend(
-                        _scrape_term(page, term, city="", is_remote=True, seen_urls=seen_urls)
+                        _scrape_term(
+                            page, term, city="", is_remote=True, seen_urls=seen_urls,
+                            page_timeout_ms=pt, selector_timeout_ms=st,
+                        )
                     )
                 except Exception as exc:
                     logger.warning("Bumeran: term '%s' remote failed: %s", term, exc)
@@ -119,7 +127,8 @@ def _blocking_scrape(config: Settings) -> list[Job]:
                     try:
                         jobs.extend(
                             _scrape_term(
-                                page, term, city=local_city, is_remote=False, seen_urls=seen_urls
+                                page, term, city=local_city, is_remote=False, seen_urls=seen_urls,
+                                page_timeout_ms=pt, selector_timeout_ms=st,
                             )
                         )
                     except Exception as exc:

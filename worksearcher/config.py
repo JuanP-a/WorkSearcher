@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     MX_SEARCH_CITY: str = ""  # lowercase, e.g. "celaya"
     MX_SEARCH_STATE: str = ""  # lowercase, e.g. "guanajuato"
 
+    PLAYWRIGHT_PAGE_LOAD_TIMEOUT_MS: int = 30_000
+    PLAYWRIGHT_SELECTOR_TIMEOUT_MS: int = 10_000
+
     HTTP_TIMEOUT_SECONDS: int = 30
     HIMALAYAS_RESULTS_LIMIT: int = 50
     MAX_JOBS_PER_MESSAGE: int = 10

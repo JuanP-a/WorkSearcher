@@ -30,19 +30,21 @@ def _scrape_term(
     state: str,
     is_remote: bool,
     seen_urls: set[str],
+    page_timeout_ms: int,
+    selector_timeout_ms: int,
 ) -> list[Job]:
     from playwright.sync_api import TimeoutError as PWTimeout
 
     jobs: list[Job] = []
     url = _build_url(term, city, state)
     logger.debug("OCC: fetching %s", url)
-    page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+    page.goto(url, wait_until="domcontentloaded", timeout=page_timeout_ms)
 
     if "403" in page.title() or "Forbidden" in page.title():
         raise RuntimeError("403 received — aborting")
 
     try:
-        page.wait_for_selector("a[href*='/empleo/']", timeout=10_000)
+        page.wait_for_selector("a[href*='/empleo/']", timeout=selector_timeout_ms)
     except PWTimeout:
         logger.warning("OCC: no job cards loaded for '%s'", term)
         return jobs
@@ -120,12 +122,16 @@ def _blocking_scrape(config: Settings, stop: threading.Event | None = None) -> l
                     logger.warning("OCC: scrape cancelled before term '%s'", term)
                     break
 
+                pt = config.PLAYWRIGHT_PAGE_LOAD_TIMEOUT_MS
+                st = config.PLAYWRIGHT_SELECTOR_TIMEOUT_MS
+
                 # Remote pass
                 page = context.new_page()
                 try:
                     jobs.extend(
                         _scrape_term(
-                            page, term, city="", state="", is_remote=True, seen_urls=seen_urls
+                            page, term, city="", state="", is_remote=True, seen_urls=seen_urls,
+                            page_timeout_ms=pt, selector_timeout_ms=st,
                         )
                     )
                 except RuntimeError as exc:
@@ -148,6 +154,7 @@ def _blocking_scrape(config: Settings, stop: threading.Event | None = None) -> l
                                 state=local_state,
                                 is_remote=False,
                                 seen_urls=seen_urls,
+                                page_timeout_ms=pt, selector_timeout_ms=st,
                             )
                         )
                     except RuntimeError as exc:
