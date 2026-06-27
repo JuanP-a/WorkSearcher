@@ -2,6 +2,7 @@
 Pipeline orchestration tests — verify _run_pipeline wiring.
 Uses in-memory SQLite and fake scrapers/notifier; no real HTTP calls.
 """
+
 import logging
 import sqlite3
 
@@ -9,7 +10,6 @@ import pytest
 
 from worksearcher.core.models import Job, JobSource
 from worksearcher.main import _run_pipeline
-from worksearcher.notifier.whatsapp import MAX_JOBS_PER_MESSAGE
 from worksearcher.storage.database import (
     init_db,
     mark_jobs_notified,
@@ -32,12 +32,14 @@ def _job(n: int, title: str = "", source: JobSource = JobSource.REMOTEOK) -> Job
 def _make_fake_scraper(jobs: list[Job]):
     async def scrape(config) -> list[Job]:
         return jobs
+
     return scrape
 
 
 def _make_failing_scraper():
     async def scrape(config) -> list[Job]:
         raise RuntimeError("scraper exploded")
+
     return scrape
 
 
@@ -49,7 +51,8 @@ async def test_pipeline_saves_new_jobs(tmp_path, monkeypatch, fake_settings):
     conn.close()
 
     jobs = [_job(1), _job(2)]
-    monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper(jobs)])
+    monkeypatch.setattr("worksearcher.main._ALL_SCRAPERS", {"fake": _make_fake_scraper(jobs)})
+    fake_settings.enabled_scrapers_list = ["fake"]
     monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     notified = []
@@ -81,7 +84,8 @@ async def test_pipeline_skips_notification_when_no_new_jobs(tmp_path, monkeypatc
     mark_jobs_notified([j.fingerprint for j in existing], conn)
     conn.close()
 
-    monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper(existing)])
+    monkeypatch.setattr("worksearcher.main._ALL_SCRAPERS", {"fake": _make_fake_scraper(existing)})
+    fake_settings.enabled_scrapers_list = ["fake"]
     monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     notified = []
@@ -105,10 +109,14 @@ async def test_pipeline_tolerates_scraper_failure(tmp_path, monkeypatch, fake_se
     conn.close()
 
     good_jobs = [_job(1)]
-    monkeypatch.setattr("worksearcher.main._SCRAPERS", [
-        _make_failing_scraper(),
-        _make_fake_scraper(good_jobs),
-    ])
+    monkeypatch.setattr(
+        "worksearcher.main._ALL_SCRAPERS",
+        {
+            "fail": _make_failing_scraper(),
+            "good": _make_fake_scraper(good_jobs),
+        },
+    )
+    fake_settings.enabled_scrapers_list = ["fail", "good"]
     monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     async def fake_send_digest(j, config):
@@ -134,12 +142,19 @@ async def test_pipeline_filters_irrelevant_jobs(tmp_path, monkeypatch, fake_sett
 
     jobs = [
         _job(1, title="Python Developer"),
-        Job(title="Marketing Manager", company="Ads Co", location="Remote",
-            url="https://example.com/job/99", source=JobSource.REMOTEOK,
-            is_remote=True, description="brand strategy and campaigns"),
+        Job(
+            title="Marketing Manager",
+            company="Ads Co",
+            location="Remote",
+            url="https://example.com/job/99",
+            source=JobSource.REMOTEOK,
+            is_remote=True,
+            description="brand strategy and campaigns",
+        ),
         _job(3, title="Backend Engineer"),
     ]
-    monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper(jobs)])
+    monkeypatch.setattr("worksearcher.main._ALL_SCRAPERS", {"fake": _make_fake_scraper(jobs)})
+    fake_settings.enabled_scrapers_list = ["fake"]
     monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     notified = []
@@ -159,13 +174,16 @@ async def test_pipeline_filters_irrelevant_jobs(tmp_path, monkeypatch, fake_sett
 
 
 @pytest.mark.asyncio
-async def test_pipeline_logs_warning_when_notification_fails(tmp_path, monkeypatch, caplog, fake_settings):
+async def test_pipeline_logs_warning_when_notification_fails(
+    tmp_path, monkeypatch, caplog, fake_settings
+):
     db_path = tmp_path / "test.db"
     conn = sqlite3.connect(db_path)
     init_db(conn)
     conn.close()
 
-    monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper([_job(1)])])
+    monkeypatch.setattr("worksearcher.main._ALL_SCRAPERS", {"fake": _make_fake_scraper([_job(1)])})
+    fake_settings.enabled_scrapers_list = ["fake"]
     monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     async def fake_send_digest(j, config):
@@ -180,10 +198,62 @@ async def test_pipeline_logs_warning_when_notification_fails(tmp_path, monkeypat
 
 
 def test_scrapers_list_includes_new_platforms():
-    from worksearcher.main import _SCRAPERS
-    scraper_modules = {s.__module__ for s in _SCRAPERS}
-    assert "worksearcher.scrapers.himalayas_scraper" in scraper_modules
-    assert "worksearcher.scrapers.hackernews_scraper" in scraper_modules
+    from worksearcher.main import _ALL_SCRAPERS
+
+    assert "himalayas" in _ALL_SCRAPERS
+    assert "hackernews" in _ALL_SCRAPERS
+
+
+def test_all_scrapers_dict_includes_all_platforms():
+    from worksearcher.main import _ALL_SCRAPERS
+
+    expected = {
+        "jobspy",
+        "remoteok",
+        "remotive",
+        "wwr",
+        "cybersecjobs",
+        "computrabajo",
+        "bumeran",
+        "himalayas",
+        "hackernews",
+    }
+    assert set(_ALL_SCRAPERS.keys()) == expected
+
+
+def test_enabled_scrapers_defaults_to_all():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert set(s.enabled_scrapers_list) == {
+        "jobspy",
+        "remoteok",
+        "remotive",
+        "wwr",
+        "cybersecjobs",
+        "computrabajo",
+        "bumeran",
+        "himalayas",
+        "hackernews",
+    }
+
+
+def test_enabled_scrapers_rejects_unknown_name():
+    from pydantic import ValidationError
+
+    from worksearcher.config import Settings
+
+    with pytest.raises(ValidationError, match="Unknown scrapers"):
+        Settings(
+            META_PHONE_NUMBER_ID="x",
+            META_ACCESS_TOKEN="x",
+            META_RECIPIENT_PHONE="x",
+            ENABLED_SCRAPERS="jobspy,nonexistent",
+        )
 
 
 @pytest.mark.asyncio
@@ -195,6 +265,7 @@ async def test_pipeline_passes_all_filter_params_from_config(tmp_path, monkeypat
     conn.close()
 
     from worksearcher.core.filters import filter_jobs as real_filter_jobs
+
     captured_kwargs = {}
 
     def spy_filter_jobs(jobs, keywords, **kwargs):
@@ -202,7 +273,8 @@ async def test_pipeline_passes_all_filter_params_from_config(tmp_path, monkeypat
         return real_filter_jobs(jobs, keywords, **kwargs)
 
     monkeypatch.setattr("worksearcher.main.filter_jobs", spy_filter_jobs)
-    monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper([])])
+    monkeypatch.setattr("worksearcher.main._ALL_SCRAPERS", {"fake": _make_fake_scraper([])})
+    fake_settings.enabled_scrapers_list = ["fake"]
     monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     async def fake_send_digest(j, config):
@@ -229,9 +301,10 @@ async def test_pipeline_marks_only_sent_jobs_as_notified(tmp_path, monkeypatch, 
     init_db(conn)
     conn.close()
 
-    overflow = MAX_JOBS_PER_MESSAGE + 5
+    overflow = fake_settings.MAX_JOBS_PER_MESSAGE + 5
     jobs = [_job(i) for i in range(overflow)]
-    monkeypatch.setattr("worksearcher.main._SCRAPERS", [_make_fake_scraper(jobs)])
+    monkeypatch.setattr("worksearcher.main._ALL_SCRAPERS", {"fake": _make_fake_scraper(jobs)})
+    fake_settings.enabled_scrapers_list = ["fake"]
     monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
 
     async def fake_send_digest(j, config):
@@ -246,5 +319,27 @@ async def test_pipeline_marks_only_sent_jobs_as_notified(tmp_path, monkeypatch, 
     unnotified_count = conn.execute("SELECT COUNT(*) FROM jobs WHERE notified=0").fetchone()[0]
     conn.close()
 
-    assert notified_count == MAX_JOBS_PER_MESSAGE
+    assert notified_count == fake_settings.MAX_JOBS_PER_MESSAGE
     assert unnotified_count == 5
+
+
+def test_max_jobs_per_message_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.MAX_JOBS_PER_MESSAGE == 10
+
+
+def test_scraper_timeout_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.SCRAPER_TIMEOUT_SECONDS == 120

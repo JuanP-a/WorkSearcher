@@ -36,7 +36,8 @@
        ...  # devuelve [] en cualquier error
    ```
 2. Añadir `<PLATAFORMA> = "<plataforma>"` a `JobSource` en `models.py`.
-3. Añadir al array `_SCRAPERS` en `main.py`.
+3. Añadir al dict `_ALL_SCRAPERS` en `main.py` con la clave = nombre del scraper (ej. `"occ"`).
+   También añadir la clave a `_KNOWN_SCRAPERS` en `config.py` para que pase el validator de `ENABLED_SCRAPERS`.
 4. Añadir tests en `tests/test_scrapers.py` con fixture + `respx.mock`.
 5. Actualizar tabla de plataformas en `CLAUDE.md`, `README.md`, `docs/arquitectura.md`.
 
@@ -79,25 +80,17 @@ source .venv/bin/activate && pytest -q
 
 ## Deploy en VPS
 
-[PENDIENTE: setup.sh no existe — pasos manuales basados en README y deuda-tecnica.md]
-
 ```bash
-# En VPS (Ubuntu 22.04):
-git clone <repo> /app
-cd /app && uv venv && uv pip install -r requirements.txt
-playwright install chromium
-playwright install-deps chromium          # ← necesario en Linux (DEVOPS-3)
-cp .env.example .env && nano .env         # rellenar secrets
+git clone <repo> /opt/worksearcher
+cd /opt/worksearcher
+cp .env.example .env
+# Editar .env: META_* secrets + DB_PATH=/var/lib/worksearcher/worksearcher.db
 
-# Crontab (crontab -e):
-0 */4 * * * cd /app && uv run python -m worksearcher run >> /var/log/worksearcher.log 2>&1
-
-# Logrotate (DEVOPS-2 — pendiente):
-# /etc/logrotate.d/worksearcher — daily, compress, 14 días
-
-# BD en ubicación correcta (DEVOPS-7 — pendiente):
-# Mover worksearcher.db a /var/lib/worksearcher/
+sudo bash deploy/setup.sh         # instala deps, playwright, logrotate, uv en /usr/local/bin
+sudo -u worksearcher crontab -e   # pegar línea de crontab.example
 ```
+
+`deploy/setup.sh` instala uv, paquetes Python con hashes (`requirements.hashes.lock`), Chromium, logrotate y crea `/var/lib/worksearcher/` con permisos correctos.
 
 ---
 

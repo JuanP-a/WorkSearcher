@@ -31,7 +31,7 @@ async def scrape(config: Settings) -> list[Job]:
     try:
         async with httpx.AsyncClient(
             headers={"User-Agent": "WorkSearcher/1.0"},
-            timeout=30,
+            timeout=config.HTTP_TIMEOUT_SECONDS,
         ) as client:
             search_resp = await client.get(
                 HN_SEARCH_URL,
@@ -69,11 +69,7 @@ async def scrape(config: Settings) -> list[Job]:
                     continue
                 job_id = child.get("id", "")
                 created_at_i = child.get("created_at_i")
-                posted_at = (
-                    datetime.fromtimestamp(created_at_i, tz=UTC)
-                    if created_at_i
-                    else None
-                )
+                posted_at = datetime.fromtimestamp(created_at_i, tz=UTC) if created_at_i else None
                 plain_text = BeautifulSoup(text, "html.parser").get_text()
                 is_remote = "REMOTE" in plain_text.upper()
                 job = Job(

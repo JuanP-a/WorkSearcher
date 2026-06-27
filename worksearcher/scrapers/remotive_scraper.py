@@ -12,7 +12,7 @@ REMOTIVE_API = "https://remotive.com/api/remote-jobs"
 
 async def scrape(config: Settings) -> list[Job]:
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=config.HTTP_TIMEOUT_SECONDS) as client:
             response = await client.get(REMOTIVE_API)
             response.raise_for_status()
             data = response.json()

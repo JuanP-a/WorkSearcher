@@ -9,15 +9,15 @@ DetectorFactory.seed = 0  # make language detection deterministic across runs
 
 # Matches "3-5 years", "3–5 years", "3‒5 years", "3—5 years", "3−5 years"
 # Covers: hyphen-minus, figure dash, en dash, em dash, minus sign (U+2212)
-_RANGE_PATTERN = re.compile(r'(\d+)\s*[-‒–—−]\s*(\d+)\s*(?:years?|yrs?|años?)', re.IGNORECASE)
+_RANGE_PATTERN = re.compile(r"(\d+)\s*[-‒–—−]\s*(\d+)\s*(?:years?|yrs?|años?)", re.IGNORECASE)
 
 # Matches "5 years", "5+ years", "5 años de experiencia"
-_YEARS_PATTERN = re.compile(r'(\d+)\+?\s*(?:years?|yrs?|años?)', re.IGNORECASE)
+_YEARS_PATTERN = re.compile(r"(\d+)\+?\s*(?:years?|yrs?|años?)", re.IGNORECASE)
 
 # Entry-level signals → treat as 0 years required
 _ENTRY_LEVEL_PATTERN = re.compile(
-    r'\b(?:entry[\s-]?level|junior|no experience required|recent graduate'
-    r'|recién egresado|sin experiencia)\b',
+    r"\b(?:entry[\s-]?level|junior|no experience required|recent graduate"
+    r"|recién egresado|sin experiencia)\b",
     re.IGNORECASE,
 )
 

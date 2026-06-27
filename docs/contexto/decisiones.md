@@ -111,6 +111,15 @@ Error detectado en code review (originalmente se guardaba sin dividir → valore
 
 ---
 
+## Configuración completa via `.env` (feat/009-flexibility)
+
+**Decisión:** Todo valor tuneable — selección de scrapers, términos de búsqueda LatAm, parámetros jobspy, timeouts, límites — se expone como campo de `Settings` configurable desde `.env`.
+**Porqué:** Permite adaptar el pipeline a cualquier dominio, región o plataforma sin tocar código. `_SCRAPERS` lista hardcodeada → `_ALL_SCRAPERS` dict + `ENABLED_SCRAPERS` en `.env`.
+**Campos añadidos:** `ENABLED_SCRAPERS`, `BUMERAN_SEARCH_TERMS`, `COMPUTRABAJO_SEARCH_TERMS`, `JOBSPY_SITES`, `JOBSPY_RESULTS_WANTED`, `JOBSPY_HOURS_OLD`, `SEARCH_LOCATION`, `HTTP_TIMEOUT_SECONDS`, `HIMALAYAS_RESULTS_LIMIT`, `MAX_JOBS_PER_MESSAGE`, `SCRAPER_TIMEOUT_SECONDS`.
+**Coste:** +11 campos en `Settings` y `FakeSettings`; scrapers más verbosos al leer `config.*` en lugar de literales.
+
+---
+
 ## Retry de notificación via columna `notified`
 
 **Decisión:** Guardar jobs en DB con `notified=0`; marcar `notified=1` solo tras WhatsApp exitoso.

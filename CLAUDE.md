@@ -32,7 +32,7 @@ Buscador de empleos automatizado para un ingeniero en sistemas (dev + cibersegur
 
 ## Keywords de búsqueda (intereses del usuario)
 
-Dos campos separados — ver `worksearcher/config.py` y `.env.example`:
+Cuatro campos configurables — ver `worksearcher/config.py` y `.env.example`:
 
 - **`SEARCH_KEYWORDS`** (filtro post-scraping, todos los scrapers, sin límite):
   - Desarrollo: python, javascript, typescript, react, node.js, frontend, backend, fullstack, software engineer, developer, web developer
@@ -40,6 +40,10 @@ Dos campos separados — ver `worksearcher/config.py` y `.env.example`:
   - Automatización: devops, automation, SRE
 - **`JOBSPY_SEARCH_TERMS`** (query a LinkedIn/Indeed/Glassdoor, máx 5 términos):
   - Default: python, cybersecurity, software engineer, devops, javascript
+- **`BUMERAN_SEARCH_TERMS`** (términos en español para Bumeran MX):
+  - Default: desarrollador, programador, backend, ciberseguridad, seguridad informatica
+- **`COMPUTRABAJO_SEARCH_TERMS`** (términos en español para Computrabajo MX):
+  - Default: desarrollador, programador, backend, ciberseguridad, seguridad informatica
 - **Siempre**: remote (todos los resultados deben ser remotos — enforced en `filters.py`)
 
 ## Convenciones

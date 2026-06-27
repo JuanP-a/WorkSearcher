@@ -24,6 +24,7 @@ from worksearcher.scrapers.wwr_scraper import _parse_title_and_company
 
 # --- WWR: _parse_title_and_company ---
 
+
 def test_wwr_parse_standard_format():
     title, company = _parse_title_and_company("Engineering: Backend Engineer at Acme Corp")
     assert title == "Backend Engineer"
@@ -105,9 +106,7 @@ async def test_remoteok_skips_metadata_item(fake_settings):
 @pytest.mark.asyncio
 @respx.mock
 async def test_remoteok_returns_empty_on_http_error(fake_settings):
-    respx.get("https://remoteok.com/api").mock(
-        return_value=httpx.Response(500)
-    )
+    respx.get("https://remoteok.com/api").mock(return_value=httpx.Response(500))
     jobs = await remoteok_scrape(fake_settings)
     assert jobs == []
 
@@ -115,9 +114,7 @@ async def test_remoteok_returns_empty_on_http_error(fake_settings):
 @pytest.mark.asyncio
 @respx.mock
 async def test_remoteok_returns_empty_on_network_error(fake_settings):
-    respx.get("https://remoteok.com/api").mock(
-        side_effect=httpx.ConnectError("timeout")
-    )
+    respx.get("https://remoteok.com/api").mock(side_effect=httpx.ConnectError("timeout"))
     jobs = await remoteok_scrape(fake_settings)
     assert jobs == []
 
@@ -183,14 +180,13 @@ async def test_remotive_handles_missing_jobs_key(fake_settings):
 @pytest.mark.asyncio
 @respx.mock
 async def test_remotive_returns_empty_on_http_error(fake_settings):
-    respx.get("https://remotive.com/api/remote-jobs").mock(
-        return_value=httpx.Response(429)
-    )
+    respx.get("https://remotive.com/api/remote-jobs").mock(return_value=httpx.Response(429))
     jobs = await remotive_scrape(fake_settings)
     assert jobs == []
 
 
 # --- slugify (shared utility used by Bumeran and Computrabajo) ---
+
 
 def test_slugify_spaces_to_dashes():
     assert slugify("seguridad informatica") == "seguridad-informatica"
@@ -214,6 +210,7 @@ def test_slugify_devops():
 
 # --- Bumeran: remote markers ---
 
+
 def test_bumeran_remote_markers_cover_common_terms():
     assert "remoto" in BUMERAN_MARKERS
     assert "home office" in BUMERAN_MARKERS
@@ -221,6 +218,7 @@ def test_bumeran_remote_markers_cover_common_terms():
 
 
 # --- Computrabajo: remote markers ---
+
 
 def test_computrabajo_remote_markers_cover_common_terms():
     assert "remoto" in COMPUTRABAJO_MARKERS
@@ -285,9 +283,7 @@ async def test_cybersecjobs_returns_empty_when_no_links(fake_settings):
 @pytest.mark.asyncio
 @respx.mock
 async def test_cybersecjobs_returns_empty_on_http_error(fake_settings):
-    respx.get("https://isecjobs.com/?remote=1").mock(
-        return_value=httpx.Response(503)
-    )
+    respx.get("https://isecjobs.com/?remote=1").mock(return_value=httpx.Response(503))
     jobs = await cybersecjobs_scrape(fake_settings)
     assert jobs == []
 
@@ -302,9 +298,7 @@ async def test_cybersecjobs_does_not_follow_redirects(fake_settings):
         return_value=httpx.Response(200, text="<html></html>")
     )
     respx.get("https://isecjobs.com/?remote=1").mock(
-        return_value=httpx.Response(
-            301, headers={"Location": "https://attacker.example.com/"}
-        )
+        return_value=httpx.Response(301, headers={"Location": "https://attacker.example.com/"})
     )
     jobs = await cybersecjobs_scrape(fake_settings)
     assert not redirect_target.called
@@ -353,9 +347,7 @@ async def test_himalayas_parses_jobs_correctly(fake_settings):
 @pytest.mark.asyncio
 @respx.mock
 async def test_himalayas_returns_empty_on_http_error(fake_settings):
-    respx.get("https://himalayas.app/jobs/api").mock(
-        return_value=httpx.Response(503)
-    )
+    respx.get("https://himalayas.app/jobs/api").mock(return_value=httpx.Response(503))
     jobs = await himalayas_scrape(fake_settings)
     assert jobs == []
 
@@ -427,27 +419,21 @@ def test_parse_hn_comment_strips_html():
 @pytest.mark.asyncio
 @respx.mock
 async def test_hackernews_parses_jobs_correctly(fake_settings):
-    respx.get(HN_SEARCH_URL).mock(
-        return_value=httpx.Response(200, json=HN_SEARCH_FIXTURE)
-    )
-    respx.get(HN_ITEMS_URL).mock(
-        return_value=httpx.Response(200, json=HN_ITEMS_FIXTURE)
-    )
+    respx.get(HN_SEARCH_URL).mock(return_value=httpx.Response(200, json=HN_SEARCH_FIXTURE))
+    respx.get(HN_ITEMS_URL).mock(return_value=httpx.Response(200, json=HN_ITEMS_FIXTURE))
     jobs = await hn_scrape(fake_settings)
     assert len(jobs) == 2  # deleted comment skipped
     assert jobs[0].company == "Acme Corp"
     assert jobs[0].title == "Backend Engineer"
     assert jobs[0].source == JobSource.HACKERNEWS
-    assert jobs[0].is_remote is True   # REMOTE comment
+    assert jobs[0].is_remote is True  # REMOTE comment
     assert jobs[1].is_remote is False  # ONSITE comment
 
 
 @pytest.mark.asyncio
 @respx.mock
 async def test_hackernews_returns_empty_on_no_thread(fake_settings):
-    respx.get(HN_SEARCH_URL).mock(
-        return_value=httpx.Response(200, json={"hits": []})
-    )
+    respx.get(HN_SEARCH_URL).mock(return_value=httpx.Response(200, json={"hits": []}))
     jobs = await hn_scrape(fake_settings)
     assert jobs == []
 
@@ -455,9 +441,7 @@ async def test_hackernews_returns_empty_on_no_thread(fake_settings):
 @pytest.mark.asyncio
 @respx.mock
 async def test_hackernews_returns_empty_on_http_error(fake_settings):
-    respx.get(HN_SEARCH_URL).mock(
-        return_value=httpx.Response(500)
-    )
+    respx.get(HN_SEARCH_URL).mock(return_value=httpx.Response(500))
     jobs = await hn_scrape(fake_settings)
     assert jobs == []
 
@@ -567,12 +551,8 @@ HN_ITEMS_FIXTURE_WITH_DATE = {
 @pytest.mark.asyncio
 @respx.mock
 async def test_hackernews_populates_posted_at(fake_settings):
-    respx.get(HN_SEARCH_URL).mock(
-        return_value=httpx.Response(200, json=HN_SEARCH_FIXTURE)
-    )
-    respx.get(HN_ITEMS_URL).mock(
-        return_value=httpx.Response(200, json=HN_ITEMS_FIXTURE_WITH_DATE)
-    )
+    respx.get(HN_SEARCH_URL).mock(return_value=httpx.Response(200, json=HN_SEARCH_FIXTURE))
+    respx.get(HN_ITEMS_URL).mock(return_value=httpx.Response(200, json=HN_ITEMS_FIXTURE_WITH_DATE))
     jobs = await hn_scrape(fake_settings)
     assert jobs[0].posted_at is not None
     assert jobs[0].posted_at == datetime.fromtimestamp(1700000000, tz=UTC)
@@ -581,33 +561,54 @@ async def test_hackernews_populates_posted_at(fake_settings):
 # --- Himalayas: min_salary_usd_monthly ---
 
 HIMALAYAS_FIXTURE_USD_MONTHLY = {
-    "jobs": [{
-        "title": "Backend Engineer", "companyName": "Co",
-        "applicationLink": "https://himalayas.app/co/backend",
-        "guid": "https://himalayas.app/co/backend",
-        "description": "Python", "locationRestrictions": [],
-        "pubDate": None, "currency": "USD", "minSalary": 2000, "salaryPeriod": "monthly",
-    }]
+    "jobs": [
+        {
+            "title": "Backend Engineer",
+            "companyName": "Co",
+            "applicationLink": "https://himalayas.app/co/backend",
+            "guid": "https://himalayas.app/co/backend",
+            "description": "Python",
+            "locationRestrictions": [],
+            "pubDate": None,
+            "currency": "USD",
+            "minSalary": 2000,
+            "salaryPeriod": "monthly",
+        }
+    ]
 }
 
 HIMALAYAS_FIXTURE_USD_ANNUAL = {
-    "jobs": [{
-        "title": "Backend Engineer", "companyName": "Co",
-        "applicationLink": "https://himalayas.app/co/backend",
-        "guid": "https://himalayas.app/co/backend",
-        "description": "Python", "locationRestrictions": [],
-        "pubDate": None, "currency": "USD", "minSalary": 24000, "salaryPeriod": "annual",
-    }]
+    "jobs": [
+        {
+            "title": "Backend Engineer",
+            "companyName": "Co",
+            "applicationLink": "https://himalayas.app/co/backend",
+            "guid": "https://himalayas.app/co/backend",
+            "description": "Python",
+            "locationRestrictions": [],
+            "pubDate": None,
+            "currency": "USD",
+            "minSalary": 24000,
+            "salaryPeriod": "annual",
+        }
+    ]
 }
 
 HIMALAYAS_FIXTURE_EUR = {
-    "jobs": [{
-        "title": "Backend Engineer", "companyName": "Co",
-        "applicationLink": "https://himalayas.app/co/backend",
-        "guid": "https://himalayas.app/co/backend",
-        "description": "Python", "locationRestrictions": [],
-        "pubDate": None, "currency": "EUR", "minSalary": 2000, "salaryPeriod": "monthly",
-    }]
+    "jobs": [
+        {
+            "title": "Backend Engineer",
+            "companyName": "Co",
+            "applicationLink": "https://himalayas.app/co/backend",
+            "guid": "https://himalayas.app/co/backend",
+            "description": "Python",
+            "locationRestrictions": [],
+            "pubDate": None,
+            "currency": "EUR",
+            "minSalary": 2000,
+            "salaryPeriod": "monthly",
+        }
+    ]
 }
 
 
@@ -646,18 +647,26 @@ async def test_himalayas_salary_non_usd_ignored(fake_settings):
 REMOTEOK_FIXTURE_WITH_SALARY = [
     {"legal": "metadata"},
     {
-        "position": "Python Developer", "company": "Startup",
-        "slug": "python-dev-123", "description": "Python skills",
-        "epoch": None, "salary_min": 60000, "salary_max": 90000,
+        "position": "Python Developer",
+        "company": "Startup",
+        "slug": "python-dev-123",
+        "description": "Python skills",
+        "epoch": None,
+        "salary_min": 60000,
+        "salary_max": 90000,
     },
 ]
 
 REMOTEOK_FIXTURE_ZERO_SALARY = [
     {"legal": "metadata"},
     {
-        "position": "Python Developer", "company": "Startup",
-        "slug": "python-dev-456", "description": "Python skills",
-        "epoch": None, "salary_min": 0, "salary_max": 0,
+        "position": "Python Developer",
+        "company": "Startup",
+        "slug": "python-dev-456",
+        "description": "Python skills",
+        "epoch": None,
+        "salary_min": 0,
+        "salary_max": 0,
     },
 ]
 
@@ -680,3 +689,96 @@ async def test_remoteok_zero_salary_treated_as_none(fake_settings):
     )
     jobs = await remoteok_scrape(fake_settings)
     assert jobs[0].min_salary_usd_monthly is None
+
+
+# --- LatAm scrapers: use config search terms ---
+
+
+def test_bumeran_search_terms_constant_removed():
+    """_SEARCH_TERMS constant must not exist — bumeran reads from config."""
+    import worksearcher.scrapers.bumeran_scraper as mod
+
+    assert not hasattr(mod, "_SEARCH_TERMS"), (
+        "_SEARCH_TERMS is hardcoded — should come from config.bumeran_search_terms_list"
+    )
+
+
+def test_computrabajo_does_not_slice_keywords_list():
+    """Computrabajo must not slice keywords_list; it uses computrabajo_search_terms_list."""
+    import inspect  # noqa: PLC0415, I001
+    import worksearcher.scrapers.computrabajo_scraper as mod  # noqa: PLC0415
+
+    source = inspect.getsource(mod._blocking_scrape)
+    assert "keywords_list[:5]" not in source, (
+        "keywords_list[:5] is hardcoded — use config.computrabajo_search_terms_list"
+    )
+
+
+def test_bumeran_search_terms_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.bumeran_search_terms_list == [
+        "desarrollador",
+        "programador",
+        "backend",
+        "ciberseguridad",
+        "seguridad informatica",
+    ]
+
+
+def test_computrabajo_search_terms_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.computrabajo_search_terms_list == [
+        "desarrollador",
+        "programador",
+        "backend",
+        "ciberseguridad",
+        "seguridad informatica",
+    ]
+
+
+def test_jobspy_config_fields_exist():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.jobspy_sites_list == ["linkedin", "indeed", "glassdoor"]
+    assert s.JOBSPY_RESULTS_WANTED == 50
+    assert s.JOBSPY_HOURS_OLD == 24
+    assert s.SEARCH_LOCATION == "Remote"
+
+
+def test_http_timeout_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.HTTP_TIMEOUT_SECONDS == 30
+
+
+def test_himalayas_results_limit_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.HIMALAYAS_RESULTS_LIMIT == 50
