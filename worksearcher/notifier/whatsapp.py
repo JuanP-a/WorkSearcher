@@ -38,7 +38,9 @@ async def send_digest(jobs: list[Job], config: Settings) -> bool:
         "text": {"body": _build_message(jobs, config.MAX_JOBS_PER_MESSAGE)},
     }
 
-    async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
+    async with httpx.AsyncClient(
+        timeout=config.WHATSAPP_HTTP_TIMEOUT_SECONDS, follow_redirects=False
+    ) as client:
         try:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
