@@ -43,7 +43,8 @@ def init_db(conn: sqlite3.Connection) -> None:
 def save_jobs(jobs: list[Job], conn: sqlite3.Connection) -> int:
     if not jobs:
         return 0
-    cursor = conn.executemany(
+    before = conn.total_changes
+    conn.executemany(
         """
         INSERT OR IGNORE INTO jobs
             (fingerprint, title, company, location, url, source, is_remote, description, posted_at)
@@ -65,7 +66,7 @@ def save_jobs(jobs: list[Job], conn: sqlite3.Connection) -> int:
         ],
     )
     conn.commit()
-    return cursor.rowcount
+    return conn.total_changes - before
 
 
 def get_unnotified_jobs(conn: sqlite3.Connection) -> list[Job]:
