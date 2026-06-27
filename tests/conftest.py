@@ -28,9 +28,11 @@ class FakeSettings:
         "bumeran",
         "himalayas",
         "hackernews",
+        "occ",
     ]
     bumeran_search_terms_list = ["desarrollador", "programador"]
     computrabajo_search_terms_list = ["desarrollador", "programador"]
+    occ_search_terms_list = ["desarrollador", "programador"]
     jobspy_sites_list = ["linkedin", "indeed", "glassdoor"]
     JOBSPY_RESULTS_WANTED = 50
     JOBSPY_HOURS_OLD = 24
