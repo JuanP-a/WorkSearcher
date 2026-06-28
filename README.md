@@ -24,6 +24,7 @@ cp .env.example .env
 # Editar .env: META_* secrets + DB_PATH=/var/lib/worksearcher/worksearcher.db
 
 sudo bash deploy/setup.sh         # instala deps, playwright, logrotate, uv en /usr/local/bin
+sudo bash deploy/harden.sh        # UFW, fail2ban, unattended-upgrades, SSH hardening
 sudo -u worksearcher crontab -e   # pegar línea de crontab.example
 ```
 
@@ -34,6 +35,12 @@ sudo -u worksearcher crontab -e   # pegar línea de crontab.example
 - Chromium + `playwright install-deps chromium` (libs de sistema para Playwright)
 - `/etc/logrotate.d/worksearcher` (rotación diaria, 14 días, comprimido)
 - directorio `/var/lib/worksearcher/` con permisos para el usuario `worksearcher`
+
+`deploy/harden.sh` aplica (idempotente):
+- SSH: deshabilita root login y password auth (drop-in en `/etc/ssh/sshd_config.d/`)
+- UFW: deny incoming por default, allow OpenSSH
+- fail2ban: 3 reintentos fallidos en 10 min → ban de 1h
+- `unattended-upgrades`: parches de seguridad auto-aplicados sin reboot
 
 ## Variables de entorno relevantes
 

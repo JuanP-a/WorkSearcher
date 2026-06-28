@@ -126,3 +126,29 @@ Error detectado en code review (originalmente se guardaba sin dividir → valore
 Al inicio del pipeline, reenviar los `notified=0` pendientes antes del nuevo scrape.
 **Porqué:** Evita pérdida de jobs si WhatsApp falla después de guardar en BD.
 **Descartado:** No persistir hasta confirmar envío — si el proceso muere entre guardar y enviar, se pierde.
+
+---
+
+## ADR-006 · Hardening de seguridad post-deploy (fix/009)
+
+**Decisión:** Script `deploy/harden.sh` idempotente + drop-in SSH config, ejecutado una vez después de `setup.sh`.
+
+**Porqué:** El deploy inicial cubría la app (uv, Playwright, worksearcher user) pero dejaba el servidor con defaults inseguros: root login por SSH habilitado, password auth habilitada, sin firewall, sin fail2ban, sin auto-patching. Estos son problemas del SO, no de la app — `setup.sh` se enfoca en app, `harden.sh` en el host.
+
+**Qué aplica (idempotente):**
+
+| Componente | Cambio | Porqué |
+|---|---|---|
+| `sshd_config.d/worksearcher.conf` | `PermitRootLogin no`, `PasswordAuthentication no`, sin forwarding | Root login + password auth = los dos ataques más comunes contra SSH expuesto |
+| UFW | `deny incoming` por default, `allow OpenSSH` | Cerrar todos los puertos no usados sin listarlos uno por uno |
+| fail2ban | sshd jail: 3 retries / 10 min → 1h ban | Mitigar brute-force sin depender de IP allowlist |
+| `unattended-upgrades` | security patches auto, no reboot | Ubuntu no parchea solo por default; cvEs aparecen semanalmente |
+
+**Por qué drop-in y no editar `/etc/ssh/sshd_config`:** `sshd_config.d/*.conf` es el patrón moderno (Ubuntu 22+ lo soporta nativamente). Mantiene los cambios aislados y reversibles con un `rm` + `systemctl reload ssh`.
+
+**Por qué idempotente:** re-ejecutable en cualquier momento (CI, recovery, próximo VPS). No falla si ya está aplicado.
+
+**Lo que NO está en el repo:**
+- 2FA en Vultr (config de cuenta, no del servidor)
+- SSH key del usuario (secreto, vive en el Mac del operador)
+- Cambio de SSH port (debatible — añade fricción sin reducir superficie real contra un atacante dirigido; default 22 con fail2ban es suficiente para bots)
