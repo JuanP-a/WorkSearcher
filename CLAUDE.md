@@ -62,8 +62,7 @@ Cuatro campos configurables — ver `worksearcher/config.py` y `.env.example`:
 Este proyecto usa Spec-Driven Development. Antes de implementar cualquier feature:
 
 1. Crear la spec en `specs/<nombre-feature>.md` siguiendo el formato de 6 elementos
-2. Revisar la spec contra el wiki SDD local:
-   `/Users/slokbaccmac/ObsidianSDD-local/`
+2. Revisar la spec contra el wiki SDD local (ver ruta en el AGENTS.md global)
 3. Implementar contra la spec
 4. Verificar que la implementación cumple los Verification Criteria de la spec
 
