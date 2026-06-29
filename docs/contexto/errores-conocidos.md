@@ -57,6 +57,33 @@ el filtro de salario incluso si pagan menos del mínimo configurado.
 El scraper de Himalayas solo maneja `"annual"` y `"monthly"`. Cualquier otro valor emite
 un `logger.debug` y deja `min_salary_usd_monthly = None`. El job pasa el filtro de salario.
 
+### OCC (occ.com.mx) está opt-in — no se ejecuta por default
+**Archivos:** `worksearcher/config.py:42`, `worksearcher/scrapers/occ_scraper.py`
+OCC cambió la estructura de URLs: las páginas de categoría usan `/empleos/` (plural),
+y los anuncios individuales están un click más abajo (cada empresa tiene su
+"bolsa de trabajo" en `/empleos/bolsa-de-trabajo-COMPANY/`). El selector actual
+`a[href*='/empleo/']` (singular con slash) matchea 0 elementos en una página
+de búsqueda. Aún corrigiendo el selector a `/empleo` (sin slash), los 95 matches
+encontrados son subcategorías y empresas, no ofertas individuales.
+
+**Diagnóstico:** `/tmp/occ_diag2.py` (Playwright + stealth, sincronizado con
+`occ_scraper.py` args). Correr si se re-intenta: `scp /tmp/occ_diag2.py deploy@<vps>:/tmp/`
+y `sudo -u worksearcher bash -c "cd /opt/worksearcher && .venv/bin/python /tmp/occ_diag2.py"`.
+
+**Caminos posibles** (no implementados):
+1. **Click-through:** navegar a cada página de categoría y extraer los links de
+   ofertas individuales. Patrón de URL de oferta individual aún desconocido
+   (requeriría diag v3 sobre una página de bolsa de trabajo).
+2. **API JSON:** OCC probablemente expone un endpoint interno que usa el JS
+   de la página. Capturable con Playwright network listener.
+3. **Mantener como opt-in** (estado actual): `OCC` removido del default
+   `ENABLED_SCRAPERS`. Sigue registrado en `_KNOWN_SCRAPERS` para validación.
+   Para re-habilitar: `ENABLED_SCRAPERS=...occ` en `.env`.
+
+**Cobertura LatAm actual sin OCC:** Bumeran y Computrabajo siguen activas
+(2 y 32 jobs en última corrida respectivamente). OCC contribuía 0 jobs antes
+del cambio, así que la pérdida neta de cobertura es nula.
+
 ---
 
 ## Deuda técnica pendiente

@@ -806,7 +806,7 @@ def test_occ_known_scraper_registered_in_config():
 
     from worksearcher.config import Settings
 
-    # "occ" must be accepted as a valid scraper name
+    # "occ" must be accepted as a valid scraper name (for opt-in via ENABLED_SCRAPERS)
     s = Settings(
         META_PHONE_NUMBER_ID="x",
         META_ACCESS_TOKEN="x",
@@ -823,6 +823,21 @@ def test_occ_known_scraper_registered_in_config():
             META_RECIPIENT_PHONE="x",
             ENABLED_SCRAPERS="occ,notareal",
         )
+
+
+def test_occ_not_in_default_enabled_scrapers():
+    """OCC is opt-in: not enabled by default because the URL pattern on
+    occ.com.mx changed (uses /empleos/ plural for category pages, individual
+    jobs are one click deeper — see errores-conocidos.md). Re-enable by
+    adding 'occ' to ENABLED_SCRAPERS in .env."""
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert "occ" not in s.enabled_scrapers_list
 
 
 # --- OCC: URL builder (pure function, testable without Playwright) ---

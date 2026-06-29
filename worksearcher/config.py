@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     )
 
     ENABLED_SCRAPERS: str = (
-        "jobspy,remoteok,remotive,wwr,cybersecjobs,computrabajo,bumeran,himalayas,hackernews,occ"
+        "jobspy,remoteok,remotive,wwr,cybersecjobs,computrabajo,bumeran,himalayas,hackernews"
     )
 
     # Spanish search terms for LatAm scrapers (Bumeran, Computrabajo)

@@ -28,7 +28,6 @@ class FakeSettings:
         "bumeran",
         "himalayas",
         "hackernews",
-        "occ",
     ]
     bumeran_search_terms_list = ["desarrollador", "programador"]
     computrabajo_search_terms_list = ["desarrollador", "programador"]
