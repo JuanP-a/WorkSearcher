@@ -230,6 +230,7 @@ def test_enabled_scrapers_defaults_to_all():
         META_ACCESS_TOKEN="x",
         META_RECIPIENT_PHONE="x",
     )
+    # occ is opt-in only (not in default) — see errores-conocidos.md
     assert set(s.enabled_scrapers_list) == {
         "jobspy",
         "remoteok",
@@ -240,8 +241,30 @@ def test_enabled_scrapers_defaults_to_all():
         "bumeran",
         "himalayas",
         "hackernews",
-        "occ",
     }
+
+
+def test_occ_is_known_scraper_but_opt_in():
+    """OCC is registered as a known scraper name (so it can be opted in
+    via ENABLED_SCRAPERS=...occ) but is NOT enabled by default."""
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert "occ" in s._KNOWN_SCRAPERS  # still recognized
+    assert "occ" not in s.enabled_scrapers_list  # but not on by default
+
+    # Opting in via env var works
+    s_opt_in = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+        ENABLED_SCRAPERS="jobspy,occ",
+    )
+    assert "occ" in s_opt_in.enabled_scrapers_list
 
 
 def test_enabled_scrapers_rejects_unknown_name():
