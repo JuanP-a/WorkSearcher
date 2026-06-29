@@ -16,12 +16,41 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+echo "=== Deploy user (recovery account) ==="
+# Create a sudoer account BEFORE locking down root SSH, so we never lose
+# access if the root key is lost. The script copies root's authorized_keys
+# — the operator must have at least one valid key on the server.
+if ! id deploy &>/dev/null; then
+  useradd -m -s /bin/bash deploy
+  mkdir -p /home/deploy/.ssh
+  if [ -f /root/.ssh/authorized_keys ]; then
+    cp /root/.ssh/authorized_keys /home/deploy/.ssh/
+  else
+    echo "WARNING: /root/.ssh/authorized_keys not found." >&2
+    echo "Add your public key to /home/deploy/.ssh/authorized_keys manually" >&2
+    echo "before disconnecting the current root session." >&2
+  fi
+  chown -R deploy:deploy /home/deploy/.ssh
+  chmod 700 /home/deploy/.ssh
+  [ -f /home/deploy/.ssh/authorized_keys ] && chmod 600 /home/deploy/.ssh/authorized_keys
+  echo "deploy ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/deploy
+  chmod 440 /etc/sudoers.d/deploy
+  echo "deploy user created with NOPASSWD sudo"
+else
+  echo "deploy user already exists — skipping"
+fi
+
 echo "=== SSH server hardening ==="
+# 00- prefix ensures this drop-in loads before 50-cloud-init.conf in
+# /etc/ssh/sshd_config.d/. sshd uses "first occurrence wins" for directives,
+# so without the prefix our PasswordAuthentication no is silently overridden
+# by cloud-init's PasswordAuthentication yes.
 install -m 644 "$SCRIPT_DIR/sshd_config.d/worksearcher.conf" \
-  /etc/ssh/sshd_config.d/worksearcher.conf
-# sshd's Include requires *.conf suffix; idempotent (overwrites cleanly)
+  /etc/ssh/sshd_config.d/00-worksearcher.conf
+# Remove the old (un-prefixed) drop-in if present from a previous deploy
+rm -f /etc/ssh/sshd_config.d/worksearcher.conf
 sshd -t && systemctl reload ssh
-echo "sshd_config.d/worksearcher.conf installed and reloaded"
+echo "sshd_config.d/00-worksearcher.conf installed and reloaded"
 
 echo "=== UFW firewall ==="
 if ! command -v ufw &>/dev/null; then

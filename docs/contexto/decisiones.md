@@ -152,3 +152,27 @@ Al inicio del pipeline, reenviar los `notified=0` pendientes antes del nuevo scr
 - 2FA en Vultr (config de cuenta, no del servidor)
 - SSH key del usuario (secreto, vive en el Mac del operador)
 - Cambio de SSH port (debatible — añade fricción sin reducir superficie real contra un atacante dirigido; default 22 con fail2ban es suficiente para bots)
+
+### ADR-006 addendum · Bugs encontrados en producción (fix/010)
+
+Después del primer deploy del hardening, se encontraron 3 bugs que provocaron lockout y self-ban:
+
+**Bug A · Drop-in sin prefijo numérico.**
+
+El script copiaba a `/etc/ssh/sshd_config.d/worksearcher.conf`. En orden alfabético, `50-cloud-init.conf` carga antes que `worksearcher.conf`. sshd usa "first occurrence wins" para directivas — el `PasswordAuthentication yes` de cloud-init ganaba sobre nuestro `no`. Resultado: el endurecimiento era silenciosamente ignorado.
+
+**Fix:** drop-in con prefijo `00-` carga antes que `50-cloud-init.conf`. El script además borra el archivo viejo sin prefijo si existe (idempotente para re-deploys).
+
+**Bug B · Lockout total al aplicar `PermitRootLogin no`.**
+
+El script original no creaba un usuario sudoer de backup. Si el operador perdía la SSH key de root (o si el archivo drop-in se rompía), no había forma de entrar — el Vultr web console tampoco deja loguear como root sin password cuando el sistema está hardened.
+
+**Fix:** el script crea un usuario `deploy` con NOPASSWD sudo + copia de la `authorized_keys` de root, **antes** de aplicar las reglas SSH. Operador debe verificar que puede entrar como `deploy` y sudoear antes de cerrar la sesión root.
+
+**Bug C · fail2ban autobaneo del operador.**
+
+fail2ban corre 3 retries / 10 min → 1h ban. Después de unas pruebas con keys/passwords incorrectas, la IP del operador quedó baneada. SSH rechazaba conexiones con "Connection refused" (UFW reject) desde la Mac, mientras que el server veía todo OK.
+
+**Fix:** en el VPS actual, `systemctl disable --now fail2ban` (decisión operativa, no de script). fail2ban vuelve a activarse cuando se configure `ignoreip` con la IP del operador. El checklist `docs/post-deploy-checklist.md` documenta esto.
+
+**Lección general:** el script de hardening nunca debe asumir que el operador puede "arreglarlo después" si algo sale mal. Cada paso de endurecimiento debe ir precedido por su contraparte de recuperación.
