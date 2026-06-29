@@ -866,9 +866,8 @@ async def test_jobspy_local_pass_passes_country_mexico(monkeypatch, fake_setting
     """Local pass must pass country='mexico' so jobspy doesn't try to parse
     a Spanish city/state string as a country and fail with
     'Invalid country string: sri lanka' (or nepal, cameroon, etc.)."""
-    import pandas as pd
-
     import jobspy
+    import pandas as pd
 
     from worksearcher.scrapers import jobspy_scraper
 
