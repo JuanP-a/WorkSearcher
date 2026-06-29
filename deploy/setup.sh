@@ -42,13 +42,24 @@ uv pip install --require-hashes -r requirements.hashes.lock
 # jobspy from pinned git SHA — VCS URLs cannot carry pip hashes by design
 uv pip install "git+https://github.com/Bunsly/JobSpy.git@fda080a373e8226f3fd60635323f5da9af9892b1#egg=python-jobspy"
 
-echo "=== Playwright (browser + system libs) ==="
-uv run playwright install chromium
-uv run playwright install-deps chromium
-
-echo "=== Permissions: app directory ==="
+echo "=== Permissions: app directory (before playwright) ==="
+# Chown BEFORE playwright install so the venv is owned by the service user
+# and the next step (playwright install) can run as that user. Playwright
+# writes the browser binary to $HOME/.cache/ms-playwright/, which must be
+# in the service user's writable home, not /root/.cache/.
 chown -R "$SERVICE_USER":"$SERVICE_USER" "$APP_DIR"
 chmod 750 "$APP_DIR"
+
+echo "=== Playwright (browser + system libs) ==="
+# Browser binary must be installed as the service user, NOT root. Otherwise
+# the binary lands in /root/.cache/ms-playwright/ and the cron-launched
+# pipeline fails at runtime with:
+#   "Executable doesn't exist at /home/worksearcher/.cache/ms-playwright/..."
+# The worksearcher user has /sbin/nologin as its shell, but `sudo -u` with
+# an explicit command bypasses that.
+sudo -u "$SERVICE_USER" bash -c "cd '$APP_DIR' && '$APP_DIR/.venv/bin/playwright' install chromium"
+# install-deps needs root (it uses apt to install system libraries).
+uv run playwright install-deps chromium
 
 echo "=== Permissions: .env (secrets) ==="
 if [[ -f "$APP_DIR/.env" ]]; then
