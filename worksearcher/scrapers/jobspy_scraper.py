@@ -18,15 +18,20 @@ async def scrape(config: Settings) -> list[Job]:
     try:
         from jobspy import scrape_jobs
 
-        def _blocking_scrape(location: str, is_remote: bool) -> list[Job]:
-            results = scrape_jobs(
-                site_name=config.jobspy_sites_list,
-                search_term=" OR ".join(config.jobspy_terms_list),
-                location=location,
-                results_wanted=config.JOBSPY_RESULTS_WANTED,
-                hours_old=config.JOBSPY_HOURS_OLD,
-                is_remote=is_remote,
-            )
+        def _blocking_scrape(
+            location: str, is_remote: bool, country: str | None = None
+        ) -> list[Job]:
+            kwargs: dict = {
+                "site_name": config.jobspy_sites_list,
+                "search_term": " OR ".join(config.jobspy_terms_list),
+                "location": location,
+                "results_wanted": config.JOBSPY_RESULTS_WANTED,
+                "hours_old": config.JOBSPY_HOURS_OLD,
+                "is_remote": is_remote,
+            }
+            if country is not None:
+                kwargs["country"] = country
+            results = scrape_jobs(**kwargs)
             jobs = []
             for _, row in results.iterrows():
                 try:
@@ -73,10 +78,13 @@ async def scrape(config: Settings) -> list[Job]:
         all_jobs.extend(remote_jobs)
         logger.info("jobspy (remote): %d jobs found", len(remote_jobs))
 
-        # Local pass — when SEARCH_LOCAL_ENABLED, also query with city location
+        # Local pass — when SEARCH_LOCAL_ENABLED, also query with city location.
+        # Pass country="mexico" explicitly so jobspy doesn't try to parse the
+        # Spanish city/state string as a country and fail with
+        # "Invalid country string: sri lanka" / "nepal" / "cameroon" (random).
         if config.SEARCH_LOCAL_ENABLED and config.local_location:
             local_jobs = await asyncio.to_thread(
-                _blocking_scrape, config.local_location, False
+                _blocking_scrape, config.local_location, False, country="mexico"
             )
             all_jobs.extend(local_jobs)
             logger.info("jobspy (local): %d jobs found", len(local_jobs))

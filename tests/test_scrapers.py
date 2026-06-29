@@ -856,3 +856,39 @@ def test_occ_no_remote_markers_constant():
     assert not hasattr(mod, "_REMOTE_MARKERS"), (
         "_REMOTE_MARKERS must not exist in occ_scraper — remote is filtered by URL path"
     )
+
+
+# --- jobspy: local pass must declare country explicitly ---
+
+
+@pytest.mark.asyncio
+async def test_jobspy_local_pass_passes_country_mexico(monkeypatch, fake_settings):
+    """Local pass must pass country='mexico' so jobspy doesn't try to parse
+    a Spanish city/state string as a country and fail with
+    'Invalid country string: sri lanka' (or nepal, cameroon, etc.)."""
+    import jobspy
+    import pandas as pd
+
+    from worksearcher.scrapers import jobspy_scraper
+
+    fake_settings.SEARCH_LOCAL_ENABLED = True
+    fake_settings.MX_SEARCH_CITY = "Celaya"
+    fake_settings.MX_SEARCH_STATE = "Guanajuato"
+    fake_settings.local_location  # touch property to ensure it builds
+
+    captured: list[dict] = []
+
+    def fake_scrape_jobs(**kwargs):
+        captured.append(kwargs)
+        return pd.DataFrame()
+
+    monkeypatch.setattr(jobspy, "scrape_jobs", fake_scrape_jobs)
+
+    await jobspy_scraper.scrape(fake_settings)
+
+    assert len(captured) == 2, f"expected 2 calls (remote + local), got {len(captured)}"
+
+    local_call = next(c for c in captured if c["is_remote"] is False)
+    assert local_call.get("country") == "mexico", (
+        f"local pass must pass country='mexico', got {local_call.get('country')!r}"
+    )

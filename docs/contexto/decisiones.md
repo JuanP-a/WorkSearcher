@@ -176,3 +176,46 @@ fail2ban corre 3 retries / 10 min → 1h ban. Después de unas pruebas con keys/
 **Fix:** en el VPS actual, `systemctl disable --now fail2ban` (decisión operativa, no de script). fail2ban vuelve a activarse cuando se configure `ignoreip` con la IP del operador. El checklist `docs/post-deploy-checklist.md` documenta esto.
 
 **Lección general:** el script de hardening nunca debe asumir que el operador puede "arreglarlo después" si algo sale mal. Cada paso de endurecimiento debe ir precedido por su contraparte de recuperación.
+
+### ADR-006 addendum v2 · Bugs encontrados después del merge (fix/012)
+
+Después del primer merge de hardening (PR #14) y de la primera ejecución real del cron en producción, aparecieron 3 bugs nuevos:
+
+**Bug D · Cron `No module named worksearcher` × 5.**
+
+Síntoma: las primeras 5 ejecuciones del cron (cada 4h) fallaron silenciosamente con `No module named worksearcher` en el log. El pipeline no se ejecutaba; el operador no recibía WhatsApp durante ~20h.
+
+Causa raíz: `pyproject.toml` no tiene sección `[build-system]`. Cuando el cron corría `/usr/local/bin/uv run python -m worksearcher`, uv detectaba el proyecto pero no podía construir/instalar el paquete local (sin build-system) — solo instalaba las dependencias pip (jobspy, playwright). El módulo `worksearcher` quedaba ausente en el site-packages del venv. `python -m worksearcher` fallaba.
+
+Detalle secundario: la fix inicial de "agregar `cd /opt/worksearcher &&`" probó que el problema era de import resolution, no de cwd. `cd` solo ayudó a `python -m worksearcher` cuando se ejecutaba manualmente (porque Python encuentra paquetes en el cwd). Con `uv run`, el comando intermedio rompía el path.
+
+**Fix:** cron usa el python del venv directamente, sin pasar por `uv run`:
+
+```cron
+0 */4 * * * HOME=/var/lib/worksearcher cd /opt/worksearcher && /opt/worksearcher/.venv/bin/python -m worksearcher run >> /var/log/worksearcher.log 2>&1
+```
+
+Workaround — la fix real (en próximo PR) es agregar `[build-system]` + `[tool.setuptools.packages.find]` a pyproject.toml y usar `uv sync` en setup.sh. Después de eso, el cron puede volver a `uv run` y estos workarounds se quitan.
+
+**Bug E · Playwright binary en `/root/.cache/` en vez de `/home/worksearcher/.cache/`.**
+
+Síntoma: OCC, Bumeran, Computrabajo crasheaban con:
+
+```
+BrowserType.launch: Executable doesn't exist at
+/home/worksearcher/.cache/ms-playwright/chromium_headless_shell-1223/...
+```
+
+Causa raíz: `setup.sh` corría `playwright install chromium` como root. Playwright escribe el binario a `$HOME/.cache/ms-playwright/` — corriendo como root, eso terminaba en `/root/.cache/`. El pipeline (corriendo como `worksearcher`) buscaba el binario en `/home/worksearcher/.cache/` y no lo encontraba. El primer deploy enmascaró esto porque un operador chown-eó el cache a mano después del install — workaround frágil que se rompe en cualquier deploy fresco.
+
+**Fix:** `setup.sh` hace `chown -R worksearcher:worksearcher $APP_DIR` ANTES del `playwright install`, y luego corre el install como `$SERVICE_USER` vía `sudo -u`. El usuario worksearcher tiene `/sbin/nologin` como shell, pero `sudo -u <user> bash -c '...'` lo bypasea y ejecuta en un bash no-login. `playwright install-deps` se queda como root (usa apt).
+
+**Bug F · jobspy local pass con país aleatorio.**
+
+Síntoma: el local pass (Celaya, Guanajuato) fallaba intermitentemente con `Invalid country string: 'sri lanka'` (o 'nepal', 'cameroon'). Cuando fallaba, el local pass devolvía 0 jobs. A veces pasaba y devolvía 4 jobs.
+
+Causa raíz: jobspy, sin un kwarg `country` explícito, intenta parsear la string de `location` como nombre de país. Con una location en español como "Celaya, Guanajuato", el parser es no-determinístico — a veces acierta México y devuelve resultados, a veces elige un país random que no es el target real y falla.
+
+**Fix:** local pass pasa `country="mexico"` explícito. `_blocking_scrape` ahora acepta un `country` opcional y solo lo incluye en los kwargs cuando está set (el remote pass sigue sin pasarlo). Cubierto por test `test_jobspy_local_pass_passes_country_mexico`.
+
+**Lección general v2:** los bugs de deploy se manifiestan solo cuando el sistema corre en producción por primera vez. No alcanza con `bash -n` y tests unitarios — hay que correr el pipeline end-to-end en una instancia real y leer el log. La fix de Bug D la encontramos revisando `sudo tail -30 /var/log/worksearcher.log`; la de Bug E la encontramos cuando el manual run reportó los Playwright errors. La de Bug F la identificamos comparando logs de runs exitosos y fallidos.
