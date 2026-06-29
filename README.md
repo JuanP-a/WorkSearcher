@@ -1,6 +1,6 @@
 # WorkSearcher
 
-Buscador de trabajo automatizado. Scraping de 11 plataformas, filtrado por keywords + fecha + blacklist + idioma + salario, notificación vía WhatsApp.
+Buscador de trabajo automatizado. Scraping de 10 plataformas activas (1 opt-in), filtrado por keywords + fecha + blacklist + idioma + salario, notificación vía WhatsApp.
 
 ## Setup local
 

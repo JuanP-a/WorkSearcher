@@ -27,7 +27,7 @@ Buscador de empleos automatizado para un ingeniero en sistemas (dev + cibersegur
 | HackerNews "Who's Hiring" | Algolia API | Global dev |
 | Computrabajo | playwright scraping | LatAm |
 | Bumeran | playwright scraping | LatAm |
-| OCC | playwright scraping | LatAm (MX) |
+| OCC | playwright scraping | LatAm (MX) — opt-in (ver `docs/contexto/errores-conocidos.md`) |
 | CyberSecJobs | httpx + BS4 | Global cyber |
 | We Work Remotely | httpx + BS4 | Global remoto |
 
@@ -70,8 +70,13 @@ Este proyecto usa Spec-Driven Development. Antes de implementar cualquier featur
 ```
 specs/              ← specs de features (crear aquí ANTES de implementar)
 docs/               ← documentación técnica y arquitectura
+  contexto/         ← decisiones (ADRs), errores conocidos, glosario
   superpowers/
     plans/          ← planes de implementación generados por el skill writing-plans
+  post-deploy-checklist.md  ← guía de hardening post-deploy
+deploy/             ← scripts de setup + hardening para VPS
+  setup.sh          ← instala app (uv, playwright, worksearcher user)
+  harden.sh         ← hardening SO (SSH, UFW, fail2ban, unattended-upgrades)
 worksearcher/       ← código fuente
   scrapers/         ← un scraper por plataforma
   core/             ← lógica pura (modelos, filtros, deduplicación)
@@ -88,3 +93,4 @@ tests/              ← pytest
 - [ADR-003] SQLite elegida sobre Postgres para mantener costo cero (sin infra adicional).
 - [ADR-004] cron del sistema elegido sobre APScheduler/Celery por simplicidad y resiliencia ante reboots.
 - [ADR-005] Arquitectura modular (scrapers / core / storage / notifier) para poder añadir/quitar plataformas sin tocar la lógica central.
+- [ADR-006] Hardening de seguridad post-deploy (deploy/harden.sh + drop-in SSH). Detalle y addenda v1+v2 con bugs de producción en `docs/contexto/decisiones.md`.
