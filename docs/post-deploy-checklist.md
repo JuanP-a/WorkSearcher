@@ -28,21 +28,13 @@ sudo tail -20 /var/log/worksearcher.log
 
 **Si falla el cron (bug `No module named worksearcher`):**
 
+Causa raíz: `uv run` no instala el paquete `worksearcher` local en el venv — pyproject.toml no tiene sección `[build-system]`, así que uv solo instala las dependencias pip (jobspy, playwright) pero no el código de la app. El venv queda sin el módulo `worksearcher` y `python -m worksearcher` falla.
+
 ```bash
-sudo -u worksearcher crontab -e
+sudo -u worksearcher bash -c "(crontab -l 2>/dev/null | grep -v 'worksearcher run'; echo '0 */4 * * * HOME=/var/lib/worksearcher cd /opt/worksearcher && /opt/worksearcher/.venv/bin/python -m worksearcher run >> /var/log/worksearcher.log 2>&1') | crontab - && crontab -l"
 ```
 
-Cambiar la línea de:
-```cron
-0 */4 * * * HOME=/var/lib/worksearcher /usr/local/bin/uv run --project /opt/worksearcher python -m worksearcher run >> /var/log/worksearcher.log 2>&1
-```
-
-A:
-```cron
-0 */4 * * * HOME=/var/lib/worksearcher cd /opt/worksearcher && /usr/local/bin/uv run python -m worksearcher run >> /var/log/worksearcher.log 2>&1
-```
-
-El `cd /opt/worksearcher && ...` es la clave — sin cwd, Python no encuentra el paquete.
+Cambio clave: usar `/opt/worksearcher/.venv/bin/python` directamente, no `uv run python`. Como worksearcher es owner de /opt/worksearcher, Python encuentra el módulo en el cwd.
 
 ### 1C · Deshabilitar fail2ban (temporal)
 
@@ -149,7 +141,7 @@ free -h | head -2
 ### Si la app no anda pero SSH sí
 
 ```bash
-sudo -u worksearcher bash -c 'cd /opt/worksearcher && HOME=/var/lib/worksearcher /usr/local/bin/uv run python -m worksearcher run'
+sudo -u worksearcher bash -c "cd /opt/worksearcher && /opt/worksearcher/.venv/bin/python -m worksearcher run"
 ```
 
 Mirá la salida. Si falla, el log te dice qué scraper.

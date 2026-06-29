@@ -3,7 +3,20 @@ MAILTO=""
 # Install as the worksearcher service user (NOT root):
 #   sudo -u worksearcher crontab -e
 #
-# Uses absolute path to uv (/usr/local/bin/uv) — required because cron
-# does not inherit the login shell PATH and worksearcher has no home dir.
-0 */4 * * * /usr/local/bin/uv run --project /opt/worksearcher python -m worksearcher run >> /var/log/worksearcher.log 2>&1
+# Why venv python (not `uv run`):
+#   pyproject.toml has no [build-system] section, so `uv run` does not
+#   install the local worksearcher package into the venv — only its pip
+#   dependencies (jobspy, playwright). The venv's site-packages ends up
+#   missing the worksearcher module, and `python -m worksearcher` fails
+#   with "No module named worksearcher". Calling the venv's python
+#   directly works because the cwd (/opt/worksearcher) contains the
+#   worksearcher/ package directory, which Python imports from.
+#   See docs/post-deploy-checklist.md section 1B for the production
+#   bug history.
+#
+# Why HOME=/var/lib/worksearcher:
+#   uv and python look for caches/locks in $HOME. worksearcher has no
+#   login shell, so $HOME defaults to /root when cron runs as
+#   worksearcher. Forcing HOME avoids /root-owned cache dirs.
+0 */4 * * * HOME=/var/lib/worksearcher cd /opt/worksearcher && /opt/worksearcher/.venv/bin/python -m worksearcher run >> /var/log/worksearcher.log 2>&1
 # Log rotation installed by setup.sh at /etc/logrotate.d/worksearcher
