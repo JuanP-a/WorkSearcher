@@ -225,30 +225,50 @@ def test_computrabajo_remote_markers_cover_common_terms():
     assert "home office" in COMPUTRABAJO_MARKERS
 
 
-# --- CyberSecJobs: HTML parsing via mocked HTTP ---
+# --- CyberSecJobs: foorilla.com session flow + HTML parsing via mocked HTTP ---
 
-_ISECJOBS_HTML = """
-<html><body>
-  <div class="card">
-    <h5><a class="stretched-link" href="/job/123">Security Engineer</a></h5>
-    <small>SecureCorp</small>
-  </div>
-  <div class="card">
-    <h5><a class="stretched-link" href="/job/456">Penetration Tester</a></h5>
-    <small>CyberFirm</small>
-  </div>
-</body></html>
+_FOORILLA_JOBS_HTML = """
+<li class="list-group-item">
+<div class="hstack justify-content-between">
+<a class="stretched-link" href=""
+    hx-get="/hiring/jobs/security-engineer-securecorp-123/"
+    hx-target="#mc_2">
+    Security Engineer
+</a>
+</div>
+</li>
+<li class="list-group-item">
+<div class="hstack justify-content-between">
+<a class="stretched-link" href=""
+    hx-get="/hiring/jobs/penetration-tester-cyberfirm-456/"
+    hx-target="#mc_2">
+    Penetration Tester
+</a>
+</div>
+</li>
 """
 
-_ISECJOBS_EMPTY_HTML = "<html><body><p>No jobs found</p></body></html>"
+_FOORILLA_EMPTY_HTML = "<div><p>No jobs found</p></div>"
+
+
+def _mock_foorilla_session(listing_html: str | httpx.Response, *, listing_status: int = 200):
+    respx.get("https://foorilla.com/").mock(
+        return_value=httpx.Response(200, headers={"set-cookie": "csrftoken=testtoken123; Path=/"})
+    )
+    respx.post("https://foorilla.com/topics/hiring/").mock(return_value=httpx.Response(200))
+    respx.post("https://foorilla.com/regions/hiring/").mock(return_value=httpx.Response(200))
+    if isinstance(listing_html, httpx.Response):
+        respx.get("https://foorilla.com/hiring/jobs/").mock(return_value=listing_html)
+    else:
+        respx.get("https://foorilla.com/hiring/jobs/").mock(
+            return_value=httpx.Response(listing_status, text=listing_html)
+        )
 
 
 @pytest.mark.asyncio
 @respx.mock
 async def test_cybersecjobs_parses_jobs_correctly(fake_settings):
-    respx.get("https://isecjobs.com/?remote=1").mock(
-        return_value=httpx.Response(200, text=_ISECJOBS_HTML)
-    )
+    _mock_foorilla_session(_FOORILLA_JOBS_HTML)
     jobs = await cybersecjobs_scrape(fake_settings)
     assert len(jobs) == 2
     titles = {j.title for j in jobs}
@@ -256,26 +276,54 @@ async def test_cybersecjobs_parses_jobs_correctly(fake_settings):
     assert "Penetration Tester" in titles
     assert all(j.source == JobSource.CYBERSECJOBS for j in jobs)
     assert all(j.is_remote for j in jobs)
+    assert all(j.location == "Remote" for j in jobs)
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_cybersecjobs_extracts_company_from_card(fake_settings):
-    respx.get("https://isecjobs.com/?remote=1").mock(
-        return_value=httpx.Response(200, text=_ISECJOBS_HTML)
-    )
+async def test_cybersecjobs_url_points_to_foorilla_job_page(fake_settings):
+    _mock_foorilla_session(_FOORILLA_JOBS_HTML)
     jobs = await cybersecjobs_scrape(fake_settings)
-    companies = {j.company for j in jobs}
-    assert "SecureCorp" in companies
-    assert "CyberFirm" in companies
+    urls = {j.url for j in jobs}
+    assert "https://foorilla.com/hiring/jobs/security-engineer-securecorp-123/" in urls
+    assert "https://foorilla.com/hiring/jobs/penetration-tester-cyberfirm-456/" in urls
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_company_is_empty_paywalled(fake_settings):
+    # foorilla hides the full company name from anonymous users — see fix-011 spec.
+    _mock_foorilla_session(_FOORILLA_JOBS_HTML)
+    jobs = await cybersecjobs_scrape(fake_settings)
+    assert all(j.company == "" for j in jobs)
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_sets_topic_and_remote_filters(fake_settings):
+    respx.get("https://foorilla.com/").mock(
+        return_value=httpx.Response(200, headers={"set-cookie": "csrftoken=testtoken123; Path=/"})
+    )
+    topic_route = respx.post("https://foorilla.com/topics/hiring/").mock(
+        return_value=httpx.Response(200)
+    )
+    region_route = respx.post("https://foorilla.com/regions/hiring/").mock(
+        return_value=httpx.Response(200)
+    )
+    respx.get("https://foorilla.com/hiring/jobs/").mock(
+        return_value=httpx.Response(200, text=_FOORILLA_JOBS_HTML)
+    )
+    await cybersecjobs_scrape(fake_settings)
+    assert topic_route.called
+    assert topic_route.calls.last.request.read() == b"topic=102"
+    assert region_route.called
+    assert region_route.calls.last.request.read() == b"remote_only=on"
 
 
 @pytest.mark.asyncio
 @respx.mock
 async def test_cybersecjobs_returns_empty_when_no_links(fake_settings):
-    respx.get("https://isecjobs.com/?remote=1").mock(
-        return_value=httpx.Response(200, text=_ISECJOBS_EMPTY_HTML)
-    )
+    _mock_foorilla_session(_FOORILLA_EMPTY_HTML)
     jobs = await cybersecjobs_scrape(fake_settings)
     assert jobs == []
 
@@ -283,7 +331,30 @@ async def test_cybersecjobs_returns_empty_when_no_links(fake_settings):
 @pytest.mark.asyncio
 @respx.mock
 async def test_cybersecjobs_returns_empty_on_http_error(fake_settings):
-    respx.get("https://isecjobs.com/?remote=1").mock(return_value=httpx.Response(503))
+    _mock_foorilla_session("", listing_status=503)
+    jobs = await cybersecjobs_scrape(fake_settings)
+    assert jobs == []
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_returns_empty_when_topic_filter_fails(fake_settings):
+    respx.get("https://foorilla.com/").mock(
+        return_value=httpx.Response(200, headers={"set-cookie": "csrftoken=testtoken123; Path=/"})
+    )
+    respx.post("https://foorilla.com/topics/hiring/").mock(return_value=httpx.Response(403))
+    jobs = await cybersecjobs_scrape(fake_settings)
+    assert jobs == []
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_cybersecjobs_returns_empty_when_region_filter_fails(fake_settings):
+    respx.get("https://foorilla.com/").mock(
+        return_value=httpx.Response(200, headers={"set-cookie": "csrftoken=testtoken123; Path=/"})
+    )
+    respx.post("https://foorilla.com/topics/hiring/").mock(return_value=httpx.Response(200))
+    respx.post("https://foorilla.com/regions/hiring/").mock(return_value=httpx.Response(403))
     jobs = await cybersecjobs_scrape(fake_settings)
     assert jobs == []
 
@@ -291,13 +362,19 @@ async def test_cybersecjobs_returns_empty_on_http_error(fake_settings):
 @pytest.mark.asyncio
 @respx.mock
 async def test_cybersecjobs_does_not_follow_redirects(fake_settings):
-    # Fix 50a10ed: follow_redirects=False prevents SSRF via open redirect.
-    # If the scraper followed the redirect, it would request attacker.com (mocked
-    # below) — respx would record the call and the assertion would fail.
+    # follow_redirects=False prevents SSRF via open redirect (same rationale as the
+    # original isecjobs fix). If the scraper followed the redirect, it would request
+    # attacker.com (mocked below) — respx would record the call and the assertion
+    # would fail.
     redirect_target = respx.get("https://attacker.example.com/").mock(
         return_value=httpx.Response(200, text="<html></html>")
     )
-    respx.get("https://isecjobs.com/?remote=1").mock(
+    respx.get("https://foorilla.com/").mock(
+        return_value=httpx.Response(200, headers={"set-cookie": "csrftoken=testtoken123; Path=/"})
+    )
+    respx.post("https://foorilla.com/topics/hiring/").mock(return_value=httpx.Response(200))
+    respx.post("https://foorilla.com/regions/hiring/").mock(return_value=httpx.Response(200))
+    respx.get("https://foorilla.com/hiring/jobs/").mock(
         return_value=httpx.Response(301, headers={"Location": "https://attacker.example.com/"})
     )
     jobs = await cybersecjobs_scrape(fake_settings)
