@@ -36,11 +36,13 @@ class Settings(BaseSettings):
             "himalayas",
             "hackernews",
             "occ",
+            "getonboard",
         }
     )
 
     ENABLED_SCRAPERS: str = (
-        "jobspy,remoteok,remotive,wwr,cybersecjobs,computrabajo,bumeran,himalayas,hackernews"
+        "jobspy,remoteok,remotive,wwr,cybersecjobs,computrabajo,bumeran,himalayas,"
+        "hackernews,getonboard"
     )
 
     # Spanish search terms for LatAm scrapers (Bumeran, Computrabajo)
@@ -51,6 +53,9 @@ class Settings(BaseSettings):
         "desarrollador,programador,backend,ciberseguridad,seguridad informatica"
     )
     OCC_SEARCH_TERMS: str = "desarrollador,programador,backend,ciberseguridad,seguridad informatica"
+
+    # GetOnBoard organizes listings by category, not free-text search
+    GETONBOARD_CATEGORIES: str = "programming,cybersecurity,sysadmin-devops-qa"
 
     # jobspy (LinkedIn / Indeed / Glassdoor) tuning
     JOBSPY_SITES: str = "linkedin,indeed,glassdoor"
@@ -144,6 +149,10 @@ class Settings(BaseSettings):
     @property
     def occ_search_terms_list(self) -> list[str]:
         return [t.strip().lower() for t in self.OCC_SEARCH_TERMS.split(",") if t.strip()]
+
+    @property
+    def getonboard_categories_list(self) -> list[str]:
+        return [c.strip().lower() for c in self.GETONBOARD_CATEGORIES.split(",") if c.strip()]
 
     @property
     def jobspy_sites_list(self) -> list[str]:

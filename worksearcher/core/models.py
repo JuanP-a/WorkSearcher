@@ -18,6 +18,7 @@ class JobSource(StrEnum):
     HIMALAYAS = "himalayas"
     HACKERNEWS = "hackernews"
     OCC = "occ"
+    GETONBOARD = "getonboard"
 
 
 class Job(BaseModel):

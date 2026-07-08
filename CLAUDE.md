@@ -30,10 +30,11 @@ Buscador de empleos automatizado para un ingeniero en sistemas (dev + cibersegur
 | OCC | playwright scraping | LatAm (MX) — opt-in (ver `docs/contexto/errores-conocidos.md`) |
 | CyberSecJobs | httpx + BS4 | Global cyber |
 | We Work Remotely | httpx + BS4 | Global remoto |
+| GetOnBoard | httpx + BS4 | LatAm |
 
 ## Keywords de búsqueda (intereses del usuario)
 
-Cuatro campos configurables — ver `worksearcher/config.py` y `.env.example`:
+Campos configurables — ver `worksearcher/config.py` y `.env.example`:
 
 - **`SEARCH_KEYWORDS`** (filtro post-scraping, todos los scrapers, sin límite):
   - Desarrollo: python, javascript, typescript, react, node.js, frontend, backend, fullstack, software engineer, developer, web developer
@@ -47,6 +48,8 @@ Cuatro campos configurables — ver `worksearcher/config.py` y `.env.example`:
   - Default: desarrollador, programador, backend, ciberseguridad, seguridad informatica
 - **`OCC_SEARCH_TERMS`** (términos en español para OCC MX):
   - Default: desarrollador, programador, backend, ciberseguridad, seguridad informatica
+- **`GETONBOARD_CATEGORIES`** (categorías de getonbrd.com — no es búsqueda libre):
+  - Default: programming, cybersecurity, sysadmin-devops-qa
 - **Siempre**: remote (todos los resultados deben ser remotos — enforced en `filters.py`)
 
 ## Convenciones

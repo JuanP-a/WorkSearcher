@@ -218,6 +218,7 @@ def test_all_scrapers_dict_includes_all_platforms():
         "himalayas",
         "hackernews",
         "occ",
+        "getonboard",
     }
     assert set(_ALL_SCRAPERS.keys()) == expected
 
@@ -241,6 +242,7 @@ def test_enabled_scrapers_defaults_to_all():
         "bumeran",
         "himalayas",
         "hackernews",
+        "getonboard",
     }
 
 
