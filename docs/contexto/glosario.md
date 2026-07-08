@@ -12,8 +12,9 @@ Clave de deduplicación. SHA-256 de `lower(title + company + url)`. Se calcula a
 como `@computed_field`. Dos jobs con mismo fingerprint = mismo trabajo visto antes.
 
 **JobSource**
-`StrEnum` con 11 valores: `linkedin`, `indeed`, `glassdoor`, `remoteok`, `remotive`,
-`weworkremotely`, `cybersecjobs`, `computrabajo`, `bumeran`, `himalayas`, `hackernews`.
+`StrEnum` con 13 valores: `linkedin`, `indeed`, `glassdoor`, `remoteok`, `remotive`,
+`weworkremotely`, `cybersecjobs`, `computrabajo`, `bumeran`, `himalayas`, `hackernews`,
+`occ`, `getonboard`.
 Identifica de qué plataforma viene cada job.
 
 **digest**
@@ -89,8 +90,10 @@ Relevante porque el pipeline futuro podría tener lectura y escritura concurrent
 | RemoteOK | `remoteok` | httpx JSON | Global remoto |
 | Remotive | `remotive` | httpx JSON | Global remoto |
 | We Work Remotely | `weworkremotely` | httpx + BS4 | Global remoto |
-| CyberSecJobs (isecjobs.com) | `cybersecjobs` | httpx + BS4 | Global cyber |
+| CyberSecJobs (foorilla.com) | `cybersecjobs` | httpx + BS4 | Global cyber |
 | Himalayas | `himalayas` | httpx JSON | Global remoto |
 | HackerNews Who's Hiring | `hackernews` | Algolia API | Global dev |
 | Computrabajo | `computrabajo` | playwright | LatAm |
 | Bumeran | `bumeran` | playwright | LatAm |
+| OCC | `occ` | playwright | LatAm (MX) — opt-in |
+| GetOnBoard | `getonboard` | httpx + BS4 | LatAm |

@@ -30,11 +30,13 @@ worksearcher/
     remoteok_scraper.py     API JSON pública
     remotive_scraper.py     API JSON pública
     wwr_scraper.py          We Work Remotely — httpx + BS4
-    cybersecjobs_scraper.py isecjobs.com — httpx + BS4
+    cybersecjobs_scraper.py foorilla.com — httpx + BS4
     himalayas_scraper.py    API JSON pública
     hackernews_scraper.py   Algolia API (hilo "Who's Hiring")
     computrabajo_scraper.py playwright — LatAm
     bumeran_scraper.py      playwright — LatAm
+    occ_scraper.py          playwright — LatAm (MX) — opt-in
+    getonboard_scraper.py   getonbrd.com — httpx + BS4 — LatAm
   core/               ← lógica pura, sin I/O
     models.py               Job (Pydantic) + JobSource (StrEnum)
     filters.py              Predicados puros + filter_jobs
@@ -99,7 +101,7 @@ class Job(BaseModel):
     company: str
     location: str
     url: str                               # único por job
-    source: JobSource                      # enum de 11 valores
+    source: JobSource                      # enum de 13 valores
     is_remote: bool
     description: str = ""
     posted_at: datetime | None = None      # UTC; None si el scraper no lo expone
