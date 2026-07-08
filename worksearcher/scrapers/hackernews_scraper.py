@@ -9,7 +9,10 @@ from worksearcher.core.models import Job, JobSource
 
 logger = logging.getLogger(__name__)
 
-HN_SEARCH_URL = "https://hn.algolia.com/api/v1/search"
+# search_by_date, not search — /search ranks by text relevance, which can
+# surface a years-old thread instead of the current month's (verified live:
+# /search returned a March 2020 thread for this exact query).
+HN_SEARCH_URL = "https://hn.algolia.com/api/v1/search_by_date"
 HN_ITEMS_URL = "https://hn.algolia.com/api/v1/items/{thread_id}"
 
 
