@@ -12,6 +12,7 @@ from worksearcher.core.filters import (
     is_recent,
     is_relevant,
     meets_experience_requirement,
+    title_implies_senior,
 )
 from worksearcher.core.models import Job, JobSource
 
@@ -164,6 +165,73 @@ def test_experience_in_title_detected():
     assert meets_experience_requirement(job, max_years=3) is False
 
 
+# --- title_implies_senior ---
+
+
+def test_title_senior_word_detected():
+    assert title_implies_senior("Senior Backend Engineer") is True
+
+
+def test_title_sr_abbreviation_detected():
+    assert title_implies_senior("Sr. Software Engineer") is True
+
+
+def test_title_staff_detected():
+    assert title_implies_senior("Staff Engineer") is True
+
+
+def test_title_principal_detected():
+    assert title_implies_senior("Principal Security Engineer") is True
+
+
+def test_title_lead_detected():
+    assert title_implies_senior("Lead Developer") is True
+
+
+def test_title_lider_spanish_detected():
+    assert title_implies_senior("Líder Técnico") is True
+
+
+def test_title_arquitecto_spanish_detected():
+    assert title_implies_senior("Arquitecto de Software") is True
+
+
+def test_title_mid_level_not_detected():
+    assert title_implies_senior("Backend Developer") is False
+
+
+def test_title_junior_not_detected():
+    assert title_implies_senior("Junior Python Developer") is False
+
+
+# --- meets_experience_requirement: senior title without explicit years ---
+
+
+def test_senior_title_without_years_fails_low_cap():
+    job = _job("Senior Backend Engineer", description="Join our growing team")
+    assert meets_experience_requirement(job, max_years=3) is False
+
+
+def test_senior_title_without_years_passes_high_cap():
+    job = _job("Senior Backend Engineer", description="Join our growing team")
+    assert meets_experience_requirement(job, max_years=5) is True
+
+
+def test_senior_title_with_explicit_years_uses_explicit_value():
+    job = _job("Senior Backend Engineer", description="2+ years of experience required")
+    assert meets_experience_requirement(job, max_years=3) is True
+
+
+def test_senior_title_with_explicit_entry_level_passes():
+    job = _job("Senior Backend Engineer", description="Entry level, no experience required")
+    assert meets_experience_requirement(job, max_years=3) is True
+
+
+def test_non_senior_title_without_years_still_passes():
+    job = _job("Backend Developer", description="Join our growing team")
+    assert meets_experience_requirement(job, max_years=3) is True
+
+
 # --- filter_jobs with experience cap ---
 
 
@@ -178,6 +246,17 @@ def test_filter_jobs_applies_experience_cap():
     assert "Python Dev" in titles
     assert "Backend Dev" in titles
     assert "Python Dev Senior" not in titles
+
+
+def test_filter_jobs_excludes_senior_title_with_no_explicit_years():
+    jobs = [
+        _job("Python Dev", description="2 years experience"),
+        _job("Senior Python Backend Engineer", description="Join our growing team"),
+    ]
+    result = filter_jobs(jobs, KEYWORDS, max_years_experience=3)
+    titles = {j.title for j in result}
+    assert "Python Dev" in titles
+    assert "Senior Python Backend Engineer" not in titles
 
 
 def test_filter_jobs_no_experience_cap_keeps_all_relevant():

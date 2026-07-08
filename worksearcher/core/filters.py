@@ -21,6 +21,19 @@ _ENTRY_LEVEL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Senior-tier title signals (EN + ES) — matched against the title only, never the
+# description, since body text often mentions "senior" in unrelated contexts
+# (e.g. "collaborate with senior engineers").
+_SENIOR_TITLE_PATTERN = re.compile(
+    r"\b(?:senior|sr\.?|staff|principal|lead|l[ií]der|arquitect[oa]|architect"
+    r"|director|head\s+of|chief|vp)\b",
+    re.IGNORECASE,
+)
+
+# Conservative floor assumed for senior-tier titles when no explicit years are
+# mentioned anywhere in the job text.
+_SENIOR_TITLE_IMPLIED_YEARS = 5
+
 
 def extract_min_years_required(text: str) -> int | None:
     """Return the minimum years of experience a job requires, or None if not mentioned."""
@@ -37,15 +50,25 @@ def extract_min_years_required(text: str) -> int | None:
     return None
 
 
+def title_implies_senior(title: str) -> bool:
+    """Return True if the title itself signals a senior-tier role."""
+    return bool(_SENIOR_TITLE_PATTERN.search(title))
+
+
 def meets_experience_requirement(job: Job, max_years: int) -> bool:
     """Return True if job does not require more than max_years of experience.
 
-    Jobs with no experience requirement mentioned are assumed accessible.
+    Jobs with no explicit years mentioned are assumed accessible, unless the
+    title itself signals a senior-tier role (e.g. "Senior Backend Engineer"),
+    in which case an implied floor of _SENIOR_TITLE_IMPLIED_YEARS is assumed.
     """
     searchable = f"{job.title} {job.description or ''}"
     min_years = extract_min_years_required(searchable)
     if min_years is None:
-        return True
+        if title_implies_senior(job.title):
+            min_years = _SENIOR_TITLE_IMPLIED_YEARS
+        else:
+            return True
     return min_years <= max_years
 
 

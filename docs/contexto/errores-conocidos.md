@@ -43,6 +43,17 @@ El pipeline no arranca — no falla silenciosamente.
 No detecta: "remote-friendly", "fully distributed", "async-first", "work from anywhere".
 Jobs con esas frases se marcan `is_remote=False` y el pipeline los descarta en `is_relevant`.
 
+### Títulos "Senior" sin años explícitos asumen 5 años implícitos (fix-012)
+**Archivo:** `worksearcher/core/filters.py::title_implies_senior`
+Antes de este fix, un job titulado "Senior Backend Engineer" sin ningún número de años
+en el texto pasaba el filtro de experiencia (min_years=None → "accesible"). Ahora, si
+el título matchea un patrón senior (EN: senior/sr/staff/principal/lead/architect/director/
+head of/chief/vp — ES: líder/arquitecto) y no hay años explícitos, se asume un mínimo
+implícito de 5 años antes de comparar contra `MAX_YEARS_EXPERIENCE`. Años explícitos en
+el texto (incluido "entry level") siempre tienen prioridad sobre esta heurística.
+La heurística sólo mira el título, nunca la descripción, para evitar falsos positivos
+de frases como "collaborate with senior engineers" en el cuerpo del job.
+
 ### `worksearcher.db` — ubicación configurable via `DB_PATH`
 La ruta por defecto (`worksearcher.db`) es relativa al cwd. En VPS se configura vía `.env`:
 `DB_PATH=/var/lib/worksearcher/worksearcher.db`. `deploy/setup.sh` crea el directorio con el owner correcto.
