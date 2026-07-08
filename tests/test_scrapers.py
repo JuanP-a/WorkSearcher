@@ -918,6 +918,34 @@ def test_occ_not_in_default_enabled_scrapers():
     assert "occ" not in s.enabled_scrapers_list
 
 
+def test_getonboard_categories_config_field_exists():
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert s.getonboard_categories_list == [
+        "programming",
+        "cybersecurity",
+        "sysadmin-devops-qa",
+    ]
+
+
+def test_getonboard_enabled_by_default():
+    """Unlike OCC, GetOnBoard is enabled by default — live-verified end to end
+    (static server-rendered HTML, no Playwright, no anti-bot blocking)."""
+    from worksearcher.config import Settings
+
+    s = Settings(
+        META_PHONE_NUMBER_ID="x",
+        META_ACCESS_TOKEN="x",
+        META_RECIPIENT_PHONE="x",
+    )
+    assert "getonboard" in s.enabled_scrapers_list
+
+
 # --- OCC: URL builder (pure function, testable without Playwright) ---
 
 
