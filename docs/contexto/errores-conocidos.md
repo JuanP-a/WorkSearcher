@@ -84,6 +84,26 @@ y `sudo -u worksearcher bash -c "cd /opt/worksearcher && .venv/bin/python /tmp/o
 (2 y 32 jobs en última corrida respectivamente). OCC contribuía 0 jobs antes
 del cambio, así que la pérdida neta de cobertura es nula.
 
+### CyberSecJobs (foorilla.com): `company` siempre vacío y URL no es el apply link real
+**Archivos:** `worksearcher/scrapers/cybersecjobs_scraper.py`
+isecjobs.com (fuente anterior) fue dado de baja el 30 jun 2026. El reemplazo,
+foorilla.com, tiene dos limitaciones aceptadas por diseño (ver `specs/fix-011-cybersecjobs-foorilla.md`):
+
+1. **`company` vacío.** foorilla trunca el nombre de la empresa (`"@ M..."`) para
+   usuarios sin sesión PRO+ ($295+/mes). No hay forma gratuita de obtenerlo.
+2. **`url` apunta a la página interna de foorilla, no al apply link externo real.**
+   `GET /hiring/jobs/<id>/apply/` sí redirige a la URL externa (ej. Workday), pero
+   solo con cookie de sesión + `Referer` del job detail — resolverlo agregaría
+   1-2 requests HTTP extra por job (~100+ por corrida) y reintroduce superficie de
+   redirect-following que un ADR de seguridad previo (SSRF, ver arriba) recomendó
+   evitar. El usuario hace click en el link de foorilla y aplica desde ahí — su
+   propio browser genera la sesión necesaria para que el botón "Apply" funcione.
+
+**API paga descartada:** foorilla y su backend (jobdataapi.com) sólo ofrecen API
+key vía suscripción — plan más barato $295/mes. Inviable para este proyecto de
+costo cero (ADR-003). El scraping de la página pública HTML es gratuito y no
+requiere autenticación.
+
 ---
 
 ## Deuda técnica pendiente
