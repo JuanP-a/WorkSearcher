@@ -43,6 +43,22 @@ El pipeline no arranca — no falla silenciosamente.
 No detecta: "remote-friendly", "fully distributed", "async-first", "work from anywhere".
 Jobs con esas frases se marcan `is_remote=False` y el pipeline los descarta en `is_relevant`.
 
+### HackerNews usaba `/search` (relevancia) en vez de `/search_by_date` — traía un thread de 2020 (fix-013)
+**Archivo:** `worksearcher/scrapers/hackernews_scraper.py`
+Verificado en vivo contra la API real de Algolia: `/api/v1/search` ordena por
+relevancia de texto, no por fecha. Con `hitsPerPage=1`, la query fija
+`"Ask HN: Who is hiring?"` devolvía un thread de **marzo 2020**
+(`objectID=22665398`, "Coronavirus Economy") en vez del thread mensual actual.
+El scraper llevaba tiempo indeterminado trayendo comentarios de hace 6 años.
+Corregido a `/api/v1/search_by_date` (mismos parámetros, orden cronológico).
+Verificado: primer hit ahora es `48747976` — "Ask HN: Who is hiring? (July 2026)".
+
+### We Work Remotely — verificado sano (fix-013), sin cambios de código
+`https://weworkremotely.com/remote-jobs.rss` responde 200, XML válido (~820KB),
+items con `pubDate` del mismo día de la verificación. El parsing
+(`_parse_title_and_company`, extracción de `link`/`description`/`pubDate`)
+sigue siendo correcto contra la estructura RSS real. Ningún fix necesario.
+
 ### Títulos "Senior" sin años explícitos asumen 5 años implícitos (fix-012)
 **Archivo:** `worksearcher/core/filters.py::title_implies_senior`
 Antes de este fix, un job titulado "Senior Backend Engineer" sin ningún número de años

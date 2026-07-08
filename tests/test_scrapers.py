@@ -441,7 +441,7 @@ async def test_himalayas_handles_empty_jobs_list(fake_settings):
 
 # --- HackerNews "Who's Hiring" scraper ---
 
-HN_SEARCH_URL = "https://hn.algolia.com/api/v1/search"
+HN_SEARCH_URL = "https://hn.algolia.com/api/v1/search_by_date"
 HN_ITEMS_URL = "https://hn.algolia.com/api/v1/items/48000000"
 
 HN_SEARCH_FIXTURE = {
