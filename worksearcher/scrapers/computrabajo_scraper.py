@@ -100,59 +100,72 @@ def _blocking_scrape(config: Settings) -> list[Job]:
                 "--disable-dev-shm-usage",
             ],
         )
-        context = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (X11; Linux x86_64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            ),
-            viewport={"width": 1280, "height": 800},
-            locale="es-MX",
-        )
-        context.add_init_script(
-            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-        )
+        try:
+            context = browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (X11; Linux x86_64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                ),
+                viewport={"width": 1280, "height": 800},
+                locale="es-MX",
+            )
+            context.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+            )
 
-        for keyword in config.computrabajo_search_terms_list:
-            pt = config.PLAYWRIGHT_PAGE_LOAD_TIMEOUT_MS
-            st = config.PLAYWRIGHT_SELECTOR_TIMEOUT_MS
+            for keyword in config.computrabajo_search_terms_list:
+                pt = config.PLAYWRIGHT_PAGE_LOAD_TIMEOUT_MS
+                st = config.PLAYWRIGHT_SELECTOR_TIMEOUT_MS
 
-            page = context.new_page()
-            try:
-                # Remote pass
-                jobs.extend(
-                    _scrape_keyword(
-                        page, keyword, city="", is_remote=True,
-                        seen_urls=seen_urls, page_timeout_ms=pt, selector_timeout_ms=st,
-                    )
-                )
-            except RuntimeError as exc:
-                logger.warning("Computrabajo (remote): %s — skipping remaining keywords", exc)
-                page.close()
-                break
-            except Exception as exc:
-                logger.warning("Computrabajo: keyword '%s' remote failed: %s", keyword, exc)
-            finally:
-                page.close()
-
-            if local_city:
                 page = context.new_page()
                 try:
+                    # Remote pass
                     jobs.extend(
                         _scrape_keyword(
-                            page, keyword, city=local_city, is_remote=False,
-                            seen_urls=seen_urls, page_timeout_ms=pt, selector_timeout_ms=st,
+                            page,
+                            keyword,
+                            city="",
+                            is_remote=True,
+                            seen_urls=seen_urls,
+                            page_timeout_ms=pt,
+                            selector_timeout_ms=st,
                         )
                     )
                 except RuntimeError as exc:
-                    logger.warning("Computrabajo (local): %s — skipping remaining keywords", exc)
+                    logger.warning("Computrabajo (remote): %s — skipping remaining keywords", exc)
                     page.close()
                     break
                 except Exception as exc:
-                    logger.warning("Computrabajo: keyword '%s' local failed: %s", keyword, exc)
+                    logger.warning("Computrabajo: keyword '%s' remote failed: %s", keyword, exc)
                 finally:
                     page.close()
 
-        browser.close()
+                if local_city:
+                    page = context.new_page()
+                    try:
+                        jobs.extend(
+                            _scrape_keyword(
+                                page,
+                                keyword,
+                                city=local_city,
+                                is_remote=False,
+                                seen_urls=seen_urls,
+                                page_timeout_ms=pt,
+                                selector_timeout_ms=st,
+                            )
+                        )
+                    except RuntimeError as exc:
+                        logger.warning(
+                            "Computrabajo (local): %s — skipping remaining keywords", exc
+                        )
+                        page.close()
+                        break
+                    except Exception as exc:
+                        logger.warning("Computrabajo: keyword '%s' local failed: %s", keyword, exc)
+                    finally:
+                        page.close()
+        finally:
+            browser.close()
 
     return jobs
 
