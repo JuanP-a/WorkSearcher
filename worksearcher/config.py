@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     )
     OCC_SEARCH_TERMS: str = "desarrollador,programador,backend,ciberseguridad,seguridad informatica"
 
+    # GetOnBoard organizes listings by category, not free-text search
+    GETONBOARD_CATEGORIES: str = "programming,cybersecurity,sysadmin-devops-qa"
+
     # jobspy (LinkedIn / Indeed / Glassdoor) tuning
     JOBSPY_SITES: str = "linkedin,indeed,glassdoor"
     JOBSPY_RESULTS_WANTED: int = 50
@@ -144,6 +147,10 @@ class Settings(BaseSettings):
     @property
     def occ_search_terms_list(self) -> list[str]:
         return [t.strip().lower() for t in self.OCC_SEARCH_TERMS.split(",") if t.strip()]
+
+    @property
+    def getonboard_categories_list(self) -> list[str]:
+        return [c.strip().lower() for c in self.GETONBOARD_CATEGORIES.split(",") if c.strip()]
 
     @property
     def jobspy_sites_list(self) -> list[str]:

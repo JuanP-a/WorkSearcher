@@ -15,6 +15,7 @@ from worksearcher.core.utils import slugify
 from worksearcher.scrapers.bumeran_scraper import _REMOTE_MARKERS as BUMERAN_MARKERS
 from worksearcher.scrapers.computrabajo_scraper import _REMOTE_MARKERS as COMPUTRABAJO_MARKERS
 from worksearcher.scrapers.cybersecjobs_scraper import scrape as cybersecjobs_scrape
+from worksearcher.scrapers.getonboard_scraper import scrape as getonboard_scrape
 from worksearcher.scrapers.hackernews_scraper import _parse_hn_comment
 from worksearcher.scrapers.hackernews_scraper import scrape as hn_scrape
 from worksearcher.scrapers.himalayas_scraper import scrape as himalayas_scrape
@@ -984,3 +985,120 @@ async def test_jobspy_local_pass_passes_country_mexico(monkeypatch, fake_setting
     assert local_call.get("country") == "mexico", (
         f"local pass must pass country='mexico', got {local_call.get('country')!r}"
     )
+
+
+# --- GetOnBoard: HTML parsing via mocked HTTP ---
+
+_GETONBOARD_HTML = """
+<a class="results-item" href="https://www.getonbrd.com/jobs/programming/backend-engineer-acme-remote" title="Backend role">
+<h4 class="results-list-title"><strong class="pr-3">Backend Engineer</strong></h4>
+<div class="results-list-info">
+<div class="size0 flex gap-1 items-center">
+<strong>Acme Corp</strong>
+</div>
+</div>
+<div class="gb-perks-list">
+<i class="size1 perk-remote_full" title="Fully remote"></i>
+</div>
+</a>
+<a class="results-item" href="https://www.getonbrd.com/jobs/programming/hybrid-dev-betaco-remote" title="Hybrid role">
+<h4 class="results-list-title"><strong class="pr-3">Hybrid Developer</strong></h4>
+<div class="results-list-info">
+<div class="size0 flex gap-1 items-center">
+<strong>BetaCo</strong>
+</div>
+</div>
+<div class="gb-perks-list">
+</div>
+</a>
+"""
+
+_GETONBOARD_EMPTY_HTML = "<div><p>No jobs found</p></div>"
+
+# Same job (by URL) appears in both categories — must be deduped
+_GETONBOARD_HTML_DUPLICATE = """
+<a class="results-item" href="https://www.getonbrd.com/jobs/programming/backend-engineer-acme-remote" title="Backend role">
+<h4 class="results-list-title"><strong class="pr-3">Backend Engineer</strong></h4>
+<div class="results-list-info">
+<div class="size0 flex gap-1 items-center">
+<strong>Acme Corp</strong>
+</div>
+</div>
+<div class="gb-perks-list">
+<i class="size1 perk-remote_full" title="Fully remote"></i>
+</div>
+</a>
+"""
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_getonboard_parses_only_fully_remote_jobs(fake_settings):
+    for category in fake_settings.getonboard_categories_list:
+        respx.get(f"https://www.getonbrd.com/jobs/{category}").mock(
+            return_value=httpx.Response(200, text=_GETONBOARD_HTML)
+        )
+    jobs = await getonboard_scrape(fake_settings)
+    titles = {j.title for j in jobs}
+    assert "Backend Engineer" in titles
+    assert "Hybrid Developer" not in titles  # no perk-remote_full badge
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_getonboard_extracts_title_company_url(fake_settings):
+    respx.get("https://www.getonbrd.com/jobs/programming").mock(
+        return_value=httpx.Response(200, text=_GETONBOARD_HTML)
+    )
+    for category in fake_settings.getonboard_categories_list[1:]:
+        respx.get(f"https://www.getonbrd.com/jobs/{category}").mock(
+            return_value=httpx.Response(200, text=_GETONBOARD_EMPTY_HTML)
+        )
+    jobs = await getonboard_scrape(fake_settings)
+    assert len(jobs) == 1
+    job = jobs[0]
+    assert job.title == "Backend Engineer"
+    assert job.company == "Acme Corp"
+    assert job.url == "https://www.getonbrd.com/jobs/programming/backend-engineer-acme-remote"
+    assert job.source == JobSource.GETONBOARD
+    assert job.is_remote is True
+    assert job.location == "Remote"
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_getonboard_dedupes_jobs_across_categories(fake_settings):
+    for category in fake_settings.getonboard_categories_list:
+        respx.get(f"https://www.getonbrd.com/jobs/{category}").mock(
+            return_value=httpx.Response(200, text=_GETONBOARD_HTML_DUPLICATE)
+        )
+    jobs = await getonboard_scrape(fake_settings)
+    urls = [j.url for j in jobs]
+    assert len(urls) == len(set(urls))  # no duplicates despite appearing in every category
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_getonboard_returns_empty_when_no_jobs(fake_settings):
+    for category in fake_settings.getonboard_categories_list:
+        respx.get(f"https://www.getonbrd.com/jobs/{category}").mock(
+            return_value=httpx.Response(200, text=_GETONBOARD_EMPTY_HTML)
+        )
+    jobs = await getonboard_scrape(fake_settings)
+    assert jobs == []
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_getonboard_continues_when_one_category_fails(fake_settings):
+    categories = fake_settings.getonboard_categories_list
+    respx.get(f"https://www.getonbrd.com/jobs/{categories[0]}").mock(
+        return_value=httpx.Response(503)
+    )
+    for category in categories[1:]:
+        respx.get(f"https://www.getonbrd.com/jobs/{category}").mock(
+            return_value=httpx.Response(200, text=_GETONBOARD_HTML)
+        )
+    jobs = await getonboard_scrape(fake_settings)
+    titles = {j.title for j in jobs}
+    assert "Backend Engineer" in titles
