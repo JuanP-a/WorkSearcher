@@ -134,6 +134,47 @@ async def test_pipeline_tolerates_scraper_failure(tmp_path, monkeypatch, fake_se
 
 
 @pytest.mark.asyncio
+async def test_pipeline_dedupes_same_job_from_two_scrapers(tmp_path, monkeypatch, fake_settings):
+    """Two scrapers (or two passes of the same scraper, e.g. jobspy remote+local)
+    can surface the identical posting. Neither copy is in the DB yet, so both
+    would survive filter_jobs/deduplicate — the pipeline must collapse them
+    before persisting/notifying, or the WhatsApp digest shows the job twice."""
+    db_path = tmp_path / "test.db"
+    conn = sqlite3.connect(db_path)
+    init_db(conn)
+    conn.close()
+
+    same_job_a = _job(1, title="Duplicate Python Dev")
+    same_job_b = _job(1, title="Duplicate Python Dev")  # identical fingerprint
+    monkeypatch.setattr(
+        "worksearcher.main._ALL_SCRAPERS",
+        {
+            "one": _make_fake_scraper([same_job_a]),
+            "two": _make_fake_scraper([same_job_b]),
+        },
+    )
+    fake_settings.enabled_scrapers_list = ["one", "two"]
+    monkeypatch.setattr("worksearcher.main.get_connection", lambda path: sqlite3.connect(db_path))
+
+    notified = []
+
+    async def fake_send_digest(j, config):
+        notified.extend(j)
+        return True
+
+    monkeypatch.setattr("worksearcher.main.send_digest", fake_send_digest)
+
+    await _run_pipeline(fake_settings)
+
+    conn = sqlite3.connect(db_path)
+    count = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+    conn.close()
+
+    assert count == 1
+    assert len(notified) == 1
+
+
+@pytest.mark.asyncio
 async def test_pipeline_filters_irrelevant_jobs(tmp_path, monkeypatch, fake_settings):
     db_path = tmp_path / "test.db"
     conn = sqlite3.connect(db_path)

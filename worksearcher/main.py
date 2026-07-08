@@ -98,6 +98,12 @@ async def _run_pipeline(config: Settings) -> None:
         len(relevant),
     )
 
+    # Two scrapers (or two passes of the same scraper, e.g. jobspy remote+local)
+    # can surface the identical posting. Neither copy is in the DB yet, so
+    # deduplicate() below wouldn't catch it — collapse same-batch duplicates
+    # here or the WhatsApp digest shows the job twice.
+    relevant = list({j.fingerprint: j for j in relevant}.values())
+
     # Dedup + persist + notify
     conn = get_connection(Path(config.DB_PATH))
     try:
