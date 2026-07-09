@@ -19,4 +19,13 @@ MAILTO=""
 #   login shell, so $HOME defaults to /root when cron runs as
 #   worksearcher. Forcing HOME avoids /root-owned cache dirs.
 0 */4 * * * HOME=/var/lib/worksearcher cd /opt/worksearcher && /opt/worksearcher/.venv/bin/python -m worksearcher run >> /var/log/worksearcher.log 2>&1
+
+# Outreach — cold-lead discovery + RH email extraction, weekly (NOT every 4h
+# like the job digest above — a local business lead doesn't change that
+# fast, and Overpass is shared community infra, not ours to hammer).
+# Requires OUTREACH_LAT/OUTREACH_LON set in .env, otherwise it logs an
+# error and exits without querying Overpass. See specs/feat-018-outreach-empresas.md.
+# Runs Monday 9am; same log file as `run` (logrotate already covers it).
+0 9 * * 1 HOME=/var/lib/worksearcher cd /opt/worksearcher && /opt/worksearcher/.venv/bin/python -m worksearcher outreach >> /var/log/worksearcher.log 2>&1
+
 # Log rotation installed by setup.sh at /etc/logrotate.d/worksearcher
