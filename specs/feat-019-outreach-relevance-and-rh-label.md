@@ -1,5 +1,16 @@
 # feat-019: Filtro de relevancia + etiqueta de confirmación RH en outreach
 
+> **Addendum (mismo día):** el filtro de relevancia por contenido (sección 2,
+> primer punto) se probó en producción y **descartó el 100% de las 100
+> empresas** de la corrida (`New (unseen) companies: 0`). Causa: la premisa
+> era incorrecta — un negocio que *necesita* contratar sistemas/ciberseguridad
+> no lo *anuncia* en su propia página de contacto pública (un hotel, un Oxxo,
+> una escuela no van a decir "sistemas" ni "tecnología" ahí). El filtro medía
+> "¿el negocio habla de tecnología en su marketing?", no "¿necesita TI?" —
+> señales distintas. **Revertido** — ver `docs/contexto/errores-conocidos.md`.
+> La etiqueta RH confirmado/general (sección 2, segundo punto) **se mantiene**,
+> sí demostró aportar valor real en la corrida de producción.
+
 ## 1. Propósito
 El primer run en producción (radio 80km, Celaya/Guanajuato) mostró dos problemas
 de calidad de datos frente al propósito de WorkSearcher (buscador para un perfil

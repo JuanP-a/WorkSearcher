@@ -28,11 +28,7 @@ async def _extract_all(companies: list[Company], config: Settings) -> list[Compa
         if isinstance(result, Exception):
             logger.warning("Failed to extract email for %s: %s", company.website, result)
             continue
-        extracted_company, is_relevant = result
-        if not is_relevant:
-            logger.info("Not relevant, discarding: %s", extracted_company.website)
-            continue
-        extracted.append(extracted_company)
+        extracted.append(result)
     return extracted
 
 
