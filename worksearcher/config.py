@@ -100,6 +100,16 @@ class Settings(BaseSettings):
     # Path to SQLite DB — override on VPS to keep DB outside repo
     DB_PATH: str = "worksearcher.db"
 
+    # Cold-outreach lead discovery — separate weekly pipeline, manual email
+    # send by the user. Coordinates unset by default; the outreach CLI
+    # command validates presence before running.
+    OUTREACH_LAT: float | None = None
+    OUTREACH_LON: float | None = None
+    OUTREACH_RADIUS_KM: int = 80
+    OUTREACH_CONTACT_PATHS: str = "/contacto,/trabaja-con-nosotros,/bolsa-de-trabajo,/careers,/rh"
+    OUTREACH_MAX_COMPANIES_PER_RUN: int = 100
+    OUTREACH_MAX_COMPANIES_PER_MESSAGE: int = 30
+
     @field_validator("MIN_SALARY_USD_MONTHLY", mode="before")
     @classmethod
     def allow_empty_salary(cls, v: object) -> object:
@@ -167,7 +177,13 @@ class Settings(BaseSettings):
         return [lang.strip().lower() for lang in self.FILTER_LANGUAGES.split(",") if lang.strip()]
 
     @property
+    def outreach_contact_paths_list(self) -> list[str]:
+        return [p.strip() for p in self.OUTREACH_CONTACT_PATHS.split(",") if p.strip()]
+
+    @property
     def local_location(self) -> str:
         """Location string for jobspy when SEARCH_LOCAL_ENABLED, e.g. 'Celaya, Guanajuato'."""
-        parts = [p.strip().title() for p in (self.MX_SEARCH_CITY, self.MX_SEARCH_STATE) if p.strip()]
+        parts = [
+            p.strip().title() for p in (self.MX_SEARCH_CITY, self.MX_SEARCH_STATE) if p.strip()
+        ]
         return ", ".join(parts) if parts else ""

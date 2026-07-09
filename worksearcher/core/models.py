@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
+from typing import Literal
 
 from pydantic import BaseModel, computed_field, field_validator
 
@@ -43,4 +44,26 @@ class Job(BaseModel):
     @property
     def fingerprint(self) -> str:
         raw = f"{self.title}{self.company}{self.url}".lower()
+        return sha256(raw.encode()).hexdigest()
+
+
+class Company(BaseModel):
+    """A cold-outreach lead discovered near a configured coordinate — not a Job.
+
+    No posted_at/age field: unlike a job posting, a local business lead
+    doesn't expire after MAX_JOB_AGE_DAYS.
+    """
+
+    name: str
+    website: str
+    latitude: float
+    longitude: float
+    email: str | None = None
+    email_is_hr_context: bool = False
+    status: Literal["pending", "no_email_found"] = "pending"
+
+    @computed_field
+    @property
+    def fingerprint(self) -> str:
+        raw = f"{self.name}{self.website}".lower()
         return sha256(raw.encode()).hexdigest()

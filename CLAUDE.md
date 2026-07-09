@@ -52,6 +52,28 @@ Campos configurables — ver `worksearcher/config.py` y `.env.example`:
   - Default: programming, cybersecurity, sysadmin-devops-qa
 - **Siempre**: remote (todos los resultados deben ser remotos — enforced en `filters.py`)
 
+## Outreach en frío (feature separada)
+
+Pipeline **distinto** del buscador de vacantes — no busca empleo, extrae correo
+de RH de empresas medianamente grandes (con o sin vacante publicada) cerca de
+unas coordenadas configurables, para que el usuario haga outreach manual.
+Ver `specs/feat-018-outreach-empresas.md` para el diseño completo.
+
+- Comando: `worksearcher outreach` (cron **semanal**, separado del `run` de 4h)
+- Discovery: Overpass API (OSM), tag `website` como proxy de tamaño de negocio
+- Extracción: httpx + BeautifulSoup4, home + rutas de contacto configurables,
+  heurística de contexto RH (no solo regex `mailto:`), respeta `robots.txt`
+- **El sistema SOLO EXTRAE — el envío de correo es manual, fuera de la app**
+  (decisión explícita: reduce el riesgo legal de comunicaciones comerciales
+  no solicitadas)
+- Tabla `companies` en SQLite: sin expiración (a diferencia de `jobs`, un
+  lead de negocio local no vence)
+- Notificación WhatsApp separada (`send_outreach_digest`), header distinto
+  al digest de vacantes, tope `OUTREACH_MAX_COMPANIES_PER_MESSAGE`
+- Config: `OUTREACH_LAT`, `OUTREACH_LON`, `OUTREACH_RADIUS_KM` (default 80),
+  `OUTREACH_CONTACT_PATHS`, `OUTREACH_MAX_COMPANIES_PER_RUN`,
+  `OUTREACH_MAX_COMPANIES_PER_MESSAGE`
+
 ## Convenciones
 - snake_case para variables y funciones, PascalCase para clases
 - async/await para operaciones I/O (scraping)
@@ -85,6 +107,7 @@ worksearcher/       ← código fuente
   core/             ← lógica pura (modelos, filtros, deduplicación)
   storage/          ← SQLite access layer
   notifier/         ← WhatsApp via Meta Cloud API
+  outreach/         ← pipeline separado: discovery + extracción de correo RH
   config.py         ← Pydantic Settings
   main.py           ← CLI entry point (Click)
 tests/              ← pytest
@@ -97,3 +120,4 @@ tests/              ← pytest
 - [ADR-004] cron del sistema elegido sobre APScheduler/Celery por simplicidad y resiliencia ante reboots.
 - [ADR-005] Arquitectura modular (scrapers / core / storage / notifier) para poder añadir/quitar plataformas sin tocar la lógica central.
 - [ADR-006] Hardening de seguridad post-deploy (deploy/harden.sh + drop-in SSH). Detalle y addenda v1+v2 con bugs de producción en `docs/contexto/decisiones.md`.
+- [ADR-007] Outreach en frío: extracción de correo únicamente, envío manual por el usuario — no automatizado. Reduce el riesgo legal de comunicaciones comerciales no solicitadas (LFPDPPP) al tratar el sistema como herramienta de research personal, no remitente. Detalle en `docs/contexto/decisiones.md` y `specs/feat-018-outreach-empresas.md`.

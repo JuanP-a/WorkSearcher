@@ -411,3 +411,22 @@ def test_scraper_timeout_config_field_exists():
         META_RECIPIENT_PHONE="x",
     )
     assert s.SCRAPER_TIMEOUT_SECONDS == 120
+
+
+def test_outreach_cli_command_invokes_pipeline(monkeypatch, fake_settings):
+    from click.testing import CliRunner
+
+    from worksearcher.main import cli
+
+    monkeypatch.setattr("worksearcher.main.Settings", lambda: fake_settings)
+    called = {}
+
+    async def fake_run_outreach_pipeline(config):
+        called["config"] = config
+
+    monkeypatch.setattr("worksearcher.main.run_outreach_pipeline", fake_run_outreach_pipeline)
+
+    result = CliRunner().invoke(cli, ["outreach"])
+
+    assert result.exit_code == 0
+    assert called["config"] is fake_settings

@@ -2,12 +2,16 @@ import sqlite3
 
 import pytest
 
-from worksearcher.core.models import Job, JobSource
+from worksearcher.core.models import Company, Job, JobSource
 from worksearcher.storage.database import (
+    get_seen_company_fingerprints,
     get_seen_fingerprints,
+    get_unnotified_companies,
     get_unnotified_jobs,
     init_db,
+    mark_companies_notified,
     mark_jobs_notified,
+    save_companies,
     save_jobs,
 )
 
@@ -98,3 +102,57 @@ def test_special_characters_stored_correctly(conn):
     assert inserted == 1
     seen = get_seen_fingerprints([job.fingerprint], conn)
     assert job.fingerprint in seen
+
+
+def _company(website: str, email: str | None = "rh@acme.mx", status: str = "pending") -> Company:
+    return Company(
+        name="Acme Corp",
+        website=website,
+        latitude=20.1,
+        longitude=-100.8,
+        email=email,
+        status=status,
+    )
+
+
+def test_save_companies_returns_inserted_count(conn):
+    companies = [_company("https://acme.mx"), _company("https://acme2.mx")]
+    assert save_companies(companies, conn) == 2
+
+
+def test_duplicate_company_not_reinserted(conn):
+    company = _company("https://acme.mx")
+    save_companies([company], conn)
+    assert save_companies([company], conn) == 0
+
+
+def test_save_empty_companies_returns_zero(conn):
+    assert save_companies([], conn) == 0
+
+
+def test_get_seen_company_fingerprints_returns_saved(conn):
+    company = _company("https://acme.mx")
+    save_companies([company], conn)
+    seen = get_seen_company_fingerprints([company.fingerprint], conn)
+    assert company.fingerprint in seen
+
+
+def test_get_seen_company_fingerprints_empty_candidates(conn):
+    assert get_seen_company_fingerprints([], conn) == set()
+
+
+def test_get_unnotified_companies_excludes_no_email_found(conn):
+    with_email = _company("https://acme.mx", email="rh@acme.mx", status="pending")
+    without_email = Company(
+        name="Beta", website="https://beta.mx", latitude=1.0, longitude=1.0, status="no_email_found"
+    )
+    save_companies([with_email, without_email], conn)
+    unnotified = get_unnotified_companies(conn)
+    assert [c.website for c in unnotified] == ["https://acme.mx"]
+
+
+def test_mark_companies_notified_clears_pending(conn):
+    company = _company("https://acme.mx")
+    save_companies([company], conn)
+    mark_companies_notified([company.fingerprint], conn)
+    assert get_unnotified_companies(conn) == []
