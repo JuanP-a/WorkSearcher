@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 
 import httpx
@@ -100,6 +101,19 @@ async def test_discover_companies_returns_empty_on_http_error(fake_settings):
     respx.post("https://overpass-api.de/api/interpreter").mock(return_value=httpx.Response(500))
     companies = await discover_companies(fake_settings)
     assert companies == []
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_discover_companies_logs_exception_type_on_timeout(fake_settings, caplog):
+    # httpx.ReadTimeout has an empty str() — logging only "%s" of the
+    # exception produces an unhelpful "failed: " with nothing after the
+    # colon. The exception type must be visible in the log too.
+    respx.post("https://overpass-api.de/api/interpreter").mock(side_effect=httpx.ReadTimeout(""))
+    with caplog.at_level(logging.ERROR, logger="worksearcher.outreach.discovery"):
+        await discover_companies(fake_settings)
+
+    assert any("ReadTimeout" in r.message for r in caplog.records)
 
 
 @pytest.mark.asyncio
