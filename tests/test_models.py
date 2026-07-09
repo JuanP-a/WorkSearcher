@@ -1,4 +1,4 @@
-from worksearcher.core.models import Job, JobSource
+from worksearcher.core.models import Company, Job, JobSource
 
 
 def test_job_fingerprint_is_computed_on_creation():
@@ -134,3 +134,29 @@ def test_job_source_occ_value():
     from worksearcher.core.models import JobSource
 
     assert JobSource.OCC == "occ"
+
+
+def test_company_fingerprint_same_name_and_website_is_stable():
+    kwargs = dict(name="Acme Corp", website="https://acme.mx", latitude=20.1, longitude=-100.8)
+    assert Company(**kwargs).fingerprint == Company(**kwargs).fingerprint
+
+
+def test_company_fingerprint_differs_by_website():
+    base = dict(name="Acme Corp", latitude=20.1, longitude=-100.8)
+    company1 = Company(**base, website="https://acme.mx")
+    company2 = Company(**base, website="https://acme.com")
+    assert company1.fingerprint != company2.fingerprint
+
+
+def test_company_fingerprint_differs_by_name():
+    base = dict(website="https://acme.mx", latitude=20.1, longitude=-100.8)
+    company1 = Company(**base, name="Acme Corp")
+    company2 = Company(**base, name="Acme Industries")
+    assert company1.fingerprint != company2.fingerprint
+
+
+def test_company_defaults_to_pending_with_no_email():
+    company = Company(name="Acme Corp", website="https://acme.mx", latitude=20.1, longitude=-100.8)
+    assert company.status == "pending"
+    assert company.email is None
+    assert company.email_is_hr_context is False
