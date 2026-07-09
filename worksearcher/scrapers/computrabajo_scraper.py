@@ -6,6 +6,11 @@ import logging
 from worksearcher.config import Settings
 from worksearcher.core.models import Job, JobSource
 from worksearcher.core.utils import slugify
+from worksearcher.scrapers._playwright_common import (
+    launch_stealth_browser,
+    new_stealth_context,
+    raise_if_blocked,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +39,7 @@ def _scrape_keyword(
     url = _build_url(keyword, city)
     logger.debug("Computrabajo: fetching %s", url)
     page.goto(url, wait_until="domcontentloaded", timeout=page_timeout_ms)
-
-    if "403" in page.title() or "Forbidden" in page.title():
-        raise RuntimeError("403 received — aborting")
+    raise_if_blocked(page)
 
     try:
         page.wait_for_selector("article.box_offer", timeout=selector_timeout_ms)
@@ -92,26 +95,9 @@ def _blocking_scrape(config: Settings) -> list[Job]:
     local_city = config.MX_SEARCH_CITY.strip().lower() if config.SEARCH_LOCAL_ENABLED else ""
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--disable-gpu",
-                "--disable-dev-shm-usage",
-            ],
-        )
+        browser = launch_stealth_browser(p)
         try:
-            context = browser.new_context(
-                user_agent=(
-                    "Mozilla/5.0 (X11; Linux x86_64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-                ),
-                viewport={"width": 1280, "height": 800},
-                locale="es-MX",
-            )
-            context.add_init_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-            )
+            context = new_stealth_context(browser)
 
             for keyword in config.computrabajo_search_terms_list:
                 pt = config.PLAYWRIGHT_PAGE_LOAD_TIMEOUT_MS
