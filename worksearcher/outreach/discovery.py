@@ -62,5 +62,5 @@ async def discover_companies(config: Settings) -> list[Company]:
         return companies[: config.OUTREACH_MAX_COMPANIES_PER_RUN]
 
     except Exception as exc:
-        logger.error("Overpass discovery failed: %s", exc)
+        logger.error("Overpass discovery failed: %s: %s", type(exc).__name__, exc)
         return []
