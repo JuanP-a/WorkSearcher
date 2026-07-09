@@ -109,6 +109,11 @@ class Settings(BaseSettings):
     OUTREACH_CONTACT_PATHS: str = "/contacto,/trabaja-con-nosotros,/bolsa-de-trabajo,/careers,/rh"
     OUTREACH_MAX_COMPANIES_PER_RUN: int = 100
     OUTREACH_MAX_COMPANIES_PER_MESSAGE: int = 30
+    # Configurable, not hardcoded: overpass-api.de intermittently rejects
+    # requests with 406 (server-side issue affecting the whole community,
+    # not our request format — see docs/contexto/errores-conocidos.md). A
+    # mirror swap (e.g. overpass.kumi.systems) needs no code change this way.
+    OUTREACH_OVERPASS_URL: str = "https://overpass-api.de/api/interpreter"
 
     @field_validator("MIN_SALARY_USD_MONTHLY", mode="before")
     @classmethod

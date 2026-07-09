@@ -34,3 +34,7 @@ def test_outreach_max_companies_defaults():
     settings = _make_settings()
     assert settings.OUTREACH_MAX_COMPANIES_PER_RUN == 100
     assert settings.OUTREACH_MAX_COMPANIES_PER_MESSAGE == 30
+
+
+def test_outreach_overpass_url_defaults_to_main_instance():
+    assert _make_settings().OUTREACH_OVERPASS_URL == "https://overpass-api.de/api/interpreter"

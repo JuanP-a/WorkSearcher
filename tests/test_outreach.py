@@ -111,6 +111,20 @@ async def test_discover_companies_raises_without_coordinates(fake_settings):
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_discover_companies_uses_configured_overpass_url(fake_settings):
+    # overpass-api.de intermittently 406s on the whole community (see
+    # docs/contexto/errores-conocidos.md) — the endpoint must be a config
+    # value, not a hardcoded constant, so a mirror swap needs no code change.
+    fake_settings.OUTREACH_OVERPASS_URL = "https://overpass.kumi.systems/api/interpreter"
+    route = respx.post("https://overpass.kumi.systems/api/interpreter").mock(
+        return_value=httpx.Response(200, json=_overpass_response([]))
+    )
+    await discover_companies(fake_settings)
+    assert route.called
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_discover_companies_respects_max_companies_cap(fake_settings):
     fake_settings.OUTREACH_MAX_COMPANIES_PER_RUN = 1
     respx.post("https://overpass-api.de/api/interpreter").mock(
