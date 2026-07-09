@@ -25,13 +25,14 @@ def _job(n: int, source: JobSource = JobSource.REMOTEOK) -> Job:
     )
 
 
-def _company(n: int) -> Company:
+def _company(n: int, email_is_hr_context: bool = False) -> Company:
     return Company(
         name=f"Company {n}",
         website=f"https://company{n}.mx",
         latitude=20.1,
         longitude=-100.8,
         email=f"rh{n}@company{n}.mx",
+        email_is_hr_context=email_is_hr_context,
     )
 
 
@@ -170,6 +171,22 @@ def test_build_outreach_message_overflow_shows_count():
 def test_build_outreach_message_empty_list():
     msg = _build_outreach_message([], _MAX_COMPANIES_PER_MESSAGE)
     assert "•" not in msg
+
+
+def test_build_outreach_message_labels_confirmed_hr_contact():
+    msg = _build_outreach_message(
+        [_company(1, email_is_hr_context=True)], _MAX_COMPANIES_PER_MESSAGE
+    )
+    assert "RH confirmado" in msg
+    assert "contacto general" not in msg
+
+
+def test_build_outreach_message_labels_generic_fallback_contact():
+    msg = _build_outreach_message(
+        [_company(1, email_is_hr_context=False)], _MAX_COMPANIES_PER_MESSAGE
+    )
+    assert "contacto general" in msg
+    assert "RH confirmado" not in msg
 
 
 # --- send_outreach_digest ---

@@ -38,3 +38,9 @@ def test_outreach_max_companies_defaults():
 
 def test_outreach_overpass_url_defaults_to_main_instance():
     assert _make_settings().OUTREACH_OVERPASS_URL == "https://overpass-api.de/api/interpreter"
+
+
+def test_outreach_relevance_keywords_default_not_empty():
+    keywords = _make_settings().outreach_relevance_keywords_list
+    assert len(keywords) > 0
+    assert "sistemas" in keywords

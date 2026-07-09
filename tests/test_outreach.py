@@ -188,7 +188,7 @@ async def test_extract_email_prefers_hr_context_over_fallback(fake_settings):
             ),
         )
     )
-    result = await extract_email(_company(), fake_settings)
+    result, _ = await extract_email(_company(), fake_settings)
     assert result.email == "rh@acme.mx"
     assert result.email_is_hr_context is True
     assert result.status == "pending"
@@ -205,7 +205,7 @@ async def test_extract_email_falls_back_to_first_email_without_hr_context(fake_s
     respx.get("https://acme.mx/contacto").mock(
         return_value=httpx.Response(200, html="<p>Sin correo</p>")
     )
-    result = await extract_email(_company(), fake_settings)
+    result, _ = await extract_email(_company(), fake_settings)
     assert result.email == "info@acme.mx"
     assert result.email_is_hr_context is False
     assert result.status == "pending"
@@ -220,7 +220,7 @@ async def test_extract_email_no_email_found_sets_status(fake_settings):
     respx.get("https://acme.mx/contacto").mock(
         return_value=httpx.Response(200, html="<p>Nada aqui tampoco</p>")
     )
-    result = await extract_email(_company(), fake_settings)
+    result, _ = await extract_email(_company(), fake_settings)
     assert result.email is None
     assert result.status == "no_email_found"
 
@@ -240,7 +240,7 @@ async def test_extract_email_respects_robots_disallow(fake_settings):
     respx.get("https://acme.mx/contacto").mock(
         return_value=httpx.Response(200, html="<a href='mailto:rh@acme.mx'>Recursos Humanos</a>")
     )
-    result = await extract_email(_company(), fake_settings)
+    result, _ = await extract_email(_company(), fake_settings)
     assert result.email is None
     assert result.status == "no_email_found"
 
@@ -254,9 +254,55 @@ async def test_extract_email_skips_failed_path_and_continues(fake_settings):
     respx.get("https://acme.mx/contacto").mock(
         return_value=httpx.Response(200, html="<a href='mailto:rh@acme.mx'>Recursos Humanos</a>")
     )
-    result = await extract_email(_company(), fake_settings)
+    result, _ = await extract_email(_company(), fake_settings)
     assert result.email == "rh@acme.mx"
     assert result.email_is_hr_context is True
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_extract_email_relevant_when_page_mentions_keyword(fake_settings):
+    fake_settings.outreach_contact_paths_list = []
+    _no_robots("https://acme.mx")
+    respx.get("https://acme.mx/").mock(
+        return_value=httpx.Response(
+            200,
+            html="<p>Ofrecemos servicios de desarrollo de software.</p>"
+            "<a href='mailto:info@acme.mx'>Info</a>",
+        )
+    )
+    _, is_relevant = await extract_email(_company(), fake_settings)
+    assert is_relevant is True
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_extract_email_not_relevant_when_no_keyword_found(fake_settings):
+    fake_settings.outreach_contact_paths_list = []
+    _no_robots("https://acme.mx")
+    respx.get("https://acme.mx/").mock(
+        return_value=httpx.Response(200, html="<p>Hotel con alberca y desayuno incluido.</p>")
+    )
+    _, is_relevant = await extract_email(_company(), fake_settings)
+    assert is_relevant is False
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_extract_email_relevance_check_needs_no_extra_requests(fake_settings):
+    fake_settings.outreach_contact_paths_list = ["/contacto"]
+    _no_robots("https://acme.mx")
+    home_route = respx.get("https://acme.mx/").mock(
+        return_value=httpx.Response(200, html="<p>Desarrollo de sistemas a medida.</p>")
+    )
+    contacto_route = respx.get("https://acme.mx/contacto").mock(
+        return_value=httpx.Response(200, html="<a href='mailto:info@acme.mx'>Info</a>")
+    )
+    await extract_email(_company(), fake_settings)
+    # One request per path for the relevance check to "not cost" anything —
+    # it must reuse the page fetched for mailto: parsing, not fetch again.
+    assert home_route.call_count == 1
+    assert contacto_route.call_count == 1
 
 
 # --- run_outreach_pipeline ---
@@ -280,13 +326,13 @@ def _make_fake_discover(companies: list[Company]):
     return discover
 
 
-def _make_fake_extract(overrides: dict | None = None):
+def _make_fake_extract(overrides: dict | None = None, is_relevant: bool = True):
     """Identity extractor by default; `overrides` maps company name -> Company to return."""
 
-    async def extract(company: Company, config) -> Company:
+    async def extract(company: Company, config) -> tuple[Company, bool]:
         if overrides and company.name in overrides:
-            return overrides[company.name]
-        return company
+            return overrides[company.name], is_relevant
+        return company, is_relevant
 
     return extract
 
@@ -467,3 +513,44 @@ async def test_outreach_pipeline_skips_when_coordinates_not_configured(monkeypat
     await run_outreach_pipeline(fake_settings)
 
     assert called is False
+
+
+@pytest.mark.asyncio
+async def test_outreach_pipeline_discards_non_relevant_companies(
+    tmp_path, monkeypatch, fake_settings
+):
+    db_path = tmp_path / "test.db"
+    conn = sqlite3.connect(db_path)
+    init_db(conn)
+    conn.close()
+
+    companies = [_lead(1), _lead(2)]
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.discover_companies", _make_fake_discover(companies)
+    )
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.extract_email",
+        _make_fake_extract(is_relevant=False),
+    )
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.get_connection", lambda path: sqlite3.connect(db_path)
+    )
+
+    notified = []
+
+    async def fake_send_outreach_digest(companies, config):
+        notified.extend(companies)
+        return True
+
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.send_outreach_digest", fake_send_outreach_digest
+    )
+
+    await run_outreach_pipeline(fake_settings)
+
+    conn = sqlite3.connect(db_path)
+    count = conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+    conn.close()
+
+    assert count == 0
+    assert notified == []

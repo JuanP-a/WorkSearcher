@@ -23,7 +23,8 @@ def _build_message(jobs: list[Job], max_jobs: int) -> str:
 def _build_outreach_message(companies: list[Company], max_companies: int) -> str:
     lines = ["*WorkSearcher — empresas para contacto (extracción semanal):*\n"]
     for company in companies[:max_companies]:
-        lines.append(f"• *{company.name}*")
+        label = "✅ RH confirmado" if company.email_is_hr_context else "⚠️ contacto general"
+        lines.append(f"• *{company.name}* ({label})")
         lines.append(f"  {company.email} — {company.website}\n")
     if len(companies) > max_companies:
         lines.append(f"_...y {len(companies) - max_companies} más guardadas en DB_")
