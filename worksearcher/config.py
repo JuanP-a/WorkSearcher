@@ -114,14 +114,6 @@ class Settings(BaseSettings):
     # not our request format — see docs/contexto/errores-conocidos.md). A
     # mirror swap (e.g. overpass.kumi.systems) needs no code change this way.
     OUTREACH_OVERPASS_URL: str = "https://overpass-api.de/api/interpreter"
-    # Company is discarded (not persisted, not notified) unless its crawled
-    # pages mention at least one of these — keeps outreach focused on leads
-    # relevant to a dev/cybersecurity job search, not any business in the radius.
-    OUTREACH_RELEVANCE_KEYWORDS: str = (
-        "sistemas,tecnologia,tecnología,desarrollo,software,informatica,"
-        "informática,ti,digital,programacion,programación,ciberseguridad,"
-        "seguridad informatica"
-    )
 
     @field_validator("MIN_SALARY_USD_MONTHLY", mode="before")
     @classmethod
@@ -192,10 +184,6 @@ class Settings(BaseSettings):
     @property
     def outreach_contact_paths_list(self) -> list[str]:
         return [p.strip() for p in self.OUTREACH_CONTACT_PATHS.split(",") if p.strip()]
-
-    @property
-    def outreach_relevance_keywords_list(self) -> list[str]:
-        return [k.strip().lower() for k in self.OUTREACH_RELEVANCE_KEYWORDS.split(",") if k.strip()]
 
     @property
     def local_location(self) -> str:

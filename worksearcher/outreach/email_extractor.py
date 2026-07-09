@@ -69,25 +69,15 @@ async def _robots_allows(client: httpx.AsyncClient, base_url: str, path: str) ->
         return True
 
 
-def _mentions_relevant_keyword(page_text: str, keywords: list[str]) -> bool:
-    lowered = page_text.lower()
-    return any(keyword in lowered for keyword in keywords)
-
-
-async def extract_email(company: Company, config: Settings) -> tuple[Company, bool]:
+async def extract_email(company: Company, config: Settings) -> Company:
     """Crawl the company's home page + configured contact paths for an RH email.
 
-    Returns `(company, is_relevant)`. `company` has `email`/`email_is_hr_context`
-    set, or `status="no_email_found"` if no mailto: link was found anywhere
-    allowed. `is_relevant` reflects whether any page fetched (before crawling
-    stopped) mentioned an `OUTREACH_RELEVANCE_KEYWORDS` term — reuses the same
-    fetch, no extra requests.
+    Returns a copy of `company` with `email`/`email_is_hr_context` set, or
+    `status="no_email_found"` if no mailto: link was found anywhere allowed.
     """
     base_url = company.website.rstrip("/")
     paths = ["", *config.outreach_contact_paths_list]
-    keywords = config.outreach_relevance_keywords_list
     fallback: tuple[str, bool] | None = None
-    is_relevant = False
 
     async with httpx.AsyncClient(
         headers={"User-Agent": _USER_AGENT},
@@ -103,8 +93,6 @@ async def extract_email(company: Company, config: Settings) -> tuple[Company, bo
                 response = await client.get(f"{base_url}{path}")
                 if response.status_code >= 400:
                     continue
-                if not is_relevant and _mentions_relevant_keyword(response.text, keywords):
-                    is_relevant = True
                 candidates = _extract_mailto_candidates(response.text)
             except Exception as exc:
                 logger.warning("Failed to crawl %s%s: %s", base_url, path, exc)
@@ -112,26 +100,16 @@ async def extract_email(company: Company, config: Settings) -> tuple[Company, bo
 
             for email, context in candidates:
                 if _is_hr_context(context):
-                    return (
-                        company.model_copy(
-                            update={
-                                "email": email,
-                                "email_is_hr_context": True,
-                                "status": "pending",
-                            }
-                        ),
-                        is_relevant,
+                    return company.model_copy(
+                        update={"email": email, "email_is_hr_context": True, "status": "pending"}
                     )
                 if fallback is None:
                     fallback = (email, False)
 
     if fallback is not None:
         email, is_hr_context = fallback
-        return (
-            company.model_copy(
-                update={"email": email, "email_is_hr_context": is_hr_context, "status": "pending"}
-            ),
-            is_relevant,
+        return company.model_copy(
+            update={"email": email, "email_is_hr_context": is_hr_context, "status": "pending"}
         )
 
-    return company.model_copy(update={"status": "no_email_found"}), is_relevant
+    return company.model_copy(update={"status": "no_email_found"})

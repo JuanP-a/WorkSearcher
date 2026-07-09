@@ -151,6 +151,36 @@ OUTREACH_OVERPASS_URL=https://overpass.kumi.systems/api/interpreter
 terceros fuera de nuestro control; solo se mitigó la rigidez de apuntar a un
 único endpoint fijo.
 
+### Filtro de relevancia por contenido para outreach — probado y revertido (feat-019)
+**Archivos:** `worksearcher/outreach/email_extractor.py`, `worksearcher/outreach/pipeline.py`
+Se implementó (y se revirtió el mismo día, tras verificar en producción)
+un filtro que descartaba una empresa de outreach si ninguna página
+crawleada mencionaba palabras clave de sistemas/tecnología/ciberseguridad
+(`OUTREACH_RELEVANCE_KEYWORDS`). En la primera corrida real (100 empresas
+descubiertas, radio 80km) descartó el **100%** — `New (unseen)
+companies: 0`.
+
+**Causa raíz — premisa incorrecta, no bug de implementación:** el filtro
+medía "¿el sitio del negocio *habla de* tecnología?", no "¿el negocio
+*necesita* contratar sistemas/ciberseguridad?". Son señales distintas: un
+hotel, una tienda Oxxo, una escuela o una oficina de gobierno pueden
+perfectamente necesitar un sysadmin o alguien de ciberseguridad sin que su
+página pública de contacto lo mencione jamás — ese tipo de necesidad no se
+anuncia al público, se resuelve por vacante interna o agencia.
+
+**Decisión:** revertido. Se mantiene la etiqueta "✅ RH confirmado" / "⚠️
+contacto general" (basada en `email_is_hr_context`, ya existente) porque esa
+sí demostró aportar señal útil en la misma corrida — el outreach vuelve a
+descubrir cualquier negocio con tag `website` en el radio (tag
+`website` como proxy de tamaño, sin filtro de industria).
+
+**Si se retoma la idea de filtrar por relevancia en el futuro:** no basar la
+señal en el contenido del propio sitio del negocio. Considerar en su lugar
+tags de OSM sobre el tipo de negocio (`office=*`, `shop=*`) — con la
+limitación ya documentada de que la cobertura de esos tags en PyMEs
+mexicanas es baja — o aceptar que el filtrado real solo puede hacerlo el
+usuario al revisar el digest de WhatsApp.
+
 ---
 
 ## Deuda técnica pendiente
