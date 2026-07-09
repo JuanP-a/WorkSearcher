@@ -219,3 +219,15 @@ Causa raíz: jobspy, sin un kwarg `country` explícito, intenta parsear la strin
 **Fix:** local pass pasa `country="mexico"` explícito. `_blocking_scrape` ahora acepta un `country` opcional y solo lo incluye en los kwargs cuando está set (el remote pass sigue sin pasarlo). Cubierto por test `test_jobspy_local_pass_passes_country_mexico`.
 
 **Lección general v2:** los bugs de deploy se manifiestan solo cuando el sistema corre en producción por primera vez. No alcanza con `bash -n` y tests unitarios — hay que correr el pipeline end-to-end en una instancia real y leer el log. La fix de Bug D la encontramos revisando `sudo tail -30 /var/log/worksearcher.log`; la de Bug E la encontramos cuando el manual run reportó los Playwright errors. La de Bug F la identificamos comparando logs de runs exitosos y fallidos.
+
+---
+
+## ADR-007 · Outreach en frío: extracción manual, sin envío automático
+
+**Decisión:** el pipeline de outreach (`worksearcher outreach`, `specs/feat-018-outreach-empresas.md`) solo descubre empresas y extrae correo de RH. El envío del correo lo hace el usuario manualmente, fuera de la app.
+
+**Porqué:** un sistema que manda correo automático a RH de terceros cae bajo reglas de comunicaciones comerciales no solicitadas (LFPDPPP en México) — requeriría aviso de privacidad, mecanismo de opt-out, identificación de remitente, etc. Tratando el sistema como herramienta de research/extracción personal (el usuario decide a quién y qué escribir), ese riesgo legal no aplica. Se evaluó explícitamente con el usuario antes de escribir código (ver brainstorming en la sesión que originó `specs/feat-018-outreach-empresas.md`).
+
+**Descartado:** envío automático de correo — mismo pipeline pero disparando el email él mismo tras la extracción. Se descartó por el riesgo legal descrito arriba; si se revisita, necesitaría aviso de privacidad + opt-out + registro de consentimiento antes de siquiera considerarse.
+
+**Consecuencia de diseño:** la tabla `companies` no tiene tracking de `contacted`/`bounced`/respuestas — eso lo lleva el usuario fuera de la app. El sistema solo trackea `notified` (si ya se le mostró el lead por WhatsApp), no el estado real del outreach.
