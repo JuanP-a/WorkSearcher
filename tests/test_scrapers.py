@@ -12,6 +12,7 @@ import respx
 
 from worksearcher.core.models import JobSource
 from worksearcher.core.utils import slugify
+from worksearcher.scrapers._playwright_common import parse_title_and_company, raise_if_blocked
 from worksearcher.scrapers.bumeran_scraper import _REMOTE_MARKERS as BUMERAN_MARKERS
 from worksearcher.scrapers.computrabajo_scraper import _REMOTE_MARKERS as COMPUTRABAJO_MARKERS
 from worksearcher.scrapers.cybersecjobs_scraper import scrape as cybersecjobs_scrape
@@ -207,6 +208,64 @@ def test_slugify_software_engineer():
 
 def test_slugify_devops():
     assert slugify("DevOps") == "devops"
+
+
+# --- _playwright_common: parse_title_and_company (shared by Bumeran + OCC) ---
+
+
+def test_parse_title_and_company_basic():
+    title, company = parse_title_and_company("Backend Developer\nAcme Corp")
+    assert title == "Backend Developer"
+    assert company == "Acme Corp"
+
+
+def test_parse_title_and_company_skips_publicado_line():
+    title, company = parse_title_and_company("Publicado hace 2 días\nBackend Developer\nAcme Corp")
+    assert title == "Backend Developer"
+    assert company == "Acme Corp"
+
+
+def test_parse_title_and_company_skips_short_lines():
+    title, company = parse_title_and_company("Hi\nBackend Developer\nAcme Corp")
+    assert title == "Backend Developer"
+    assert company == "Acme Corp"
+
+
+def test_parse_title_and_company_no_company_line():
+    title, company = parse_title_and_company("Backend Developer")
+    assert title == "Backend Developer"
+    assert company == ""
+
+
+def test_parse_title_and_company_empty_string():
+    title, company = parse_title_and_company("")
+    assert title == ""
+    assert company == ""
+
+
+# --- _playwright_common: raise_if_blocked ---
+
+
+class _FakePage:
+    def __init__(self, title: str):
+        self._title = title
+
+    def title(self) -> str:
+        return self._title
+
+
+def test_raise_if_blocked_raises_on_403_title():
+    with pytest.raises(RuntimeError):
+        raise_if_blocked(_FakePage("403 Forbidden"))
+
+
+def test_raise_if_blocked_raises_on_forbidden_title():
+    with pytest.raises(RuntimeError):
+        raise_if_blocked(_FakePage("Access Forbidden"))
+
+
+def test_raise_if_blocked_does_not_raise_on_normal_title():
+    raise_if_blocked(_FakePage("Bumeran - Empleos en México"))  # should not raise
 
 
 # --- Bumeran: remote markers ---

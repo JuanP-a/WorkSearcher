@@ -6,6 +6,12 @@ import logging
 from worksearcher.config import Settings
 from worksearcher.core.models import Job, JobSource
 from worksearcher.core.utils import slugify
+from worksearcher.scrapers._playwright_common import (
+    launch_stealth_browser,
+    new_stealth_context,
+    parse_title_and_company,
+    raise_if_blocked,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +38,7 @@ def _scrape_term(
     url = _build_url(term, city)
     logger.debug("Bumeran: fetching %s", url)
     page.goto(url, wait_until="domcontentloaded", timeout=page_timeout_ms)
+    raise_if_blocked(page)
     try:
         page.wait_for_selector("a[href*='/empleos/']", timeout=selector_timeout_ms)
     except Exception:
@@ -53,14 +60,7 @@ def _scrape_term(
             seen_urls.add(href)
 
             raw = link.inner_text().strip()
-            lines = [ln.strip() for ln in raw.split("\n") if ln.strip()]
-
-            title = next(
-                (ln for ln in lines if len(ln) > 5 and not ln.startswith("Publicado")),
-                "",
-            )
-            company_idx = lines.index(title) + 1 if title in lines else -1
-            company = lines[company_idx] if 0 < company_idx < len(lines) else ""
+            title, company = parse_title_and_company(raw)
 
             if not title:
                 continue
@@ -94,26 +94,9 @@ def _blocking_scrape(config: Settings) -> list[Job]:
     local_city = config.MX_SEARCH_CITY.strip().lower() if config.SEARCH_LOCAL_ENABLED else ""
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--disable-gpu",
-                "--disable-dev-shm-usage",
-            ],
-        )
+        browser = launch_stealth_browser(p)
         try:
-            context = browser.new_context(
-                user_agent=(
-                    "Mozilla/5.0 (X11; Linux x86_64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-                ),
-                viewport={"width": 1280, "height": 800},
-                locale="es-MX",
-            )
-            context.add_init_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-            )
+            context = new_stealth_context(browser)
             page = context.new_page()
 
             for term in config.bumeran_search_terms_list:
@@ -123,10 +106,18 @@ def _blocking_scrape(config: Settings) -> list[Job]:
                 try:
                     jobs.extend(
                         _scrape_term(
-                            page, term, city="", is_remote=True, seen_urls=seen_urls,
-                            page_timeout_ms=pt, selector_timeout_ms=st,
+                            page,
+                            term,
+                            city="",
+                            is_remote=True,
+                            seen_urls=seen_urls,
+                            page_timeout_ms=pt,
+                            selector_timeout_ms=st,
                         )
                     )
+                except RuntimeError as exc:
+                    logger.warning("Bumeran (remote): %s — skipping remaining terms", exc)
+                    break
                 except Exception as exc:
                     logger.warning("Bumeran: term '%s' remote failed: %s", term, exc)
                     continue
@@ -135,10 +126,18 @@ def _blocking_scrape(config: Settings) -> list[Job]:
                     try:
                         jobs.extend(
                             _scrape_term(
-                                page, term, city=local_city, is_remote=False, seen_urls=seen_urls,
-                                page_timeout_ms=pt, selector_timeout_ms=st,
+                                page,
+                                term,
+                                city=local_city,
+                                is_remote=False,
+                                seen_urls=seen_urls,
+                                page_timeout_ms=pt,
+                                selector_timeout_ms=st,
                             )
                         )
+                    except RuntimeError as exc:
+                        logger.warning("Bumeran (local): %s — skipping remaining terms", exc)
+                        break
                     except Exception as exc:
                         logger.warning("Bumeran: term '%s' local failed: %s", term, exc)
                         continue
