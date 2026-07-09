@@ -10,6 +10,7 @@ from worksearcher.core.deduplicator import deduplicate
 from worksearcher.core.filters import filter_jobs
 from worksearcher.core.models import Job
 from worksearcher.notifier.whatsapp import send_digest
+from worksearcher.outreach.pipeline import run_outreach_pipeline
 from worksearcher.scrapers import (
     bumeran_scraper,
     computrabajo_scraper,
@@ -153,6 +154,13 @@ def run() -> None:
     """Run the full job search pipeline."""
     config = Settings()
     asyncio.run(_run_pipeline(config))
+
+
+@cli.command()
+def outreach() -> None:
+    """Run the cold-outreach company discovery + email extraction pipeline (weekly, separate from `run`)."""
+    config = Settings()
+    asyncio.run(run_outreach_pipeline(config))
 
 
 if __name__ == "__main__":

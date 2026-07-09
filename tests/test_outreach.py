@@ -1,3 +1,5 @@
+import sqlite3
+
 import httpx
 import pytest
 import respx
@@ -5,6 +7,8 @@ import respx
 from worksearcher.core.models import Company
 from worksearcher.outreach.discovery import discover_companies
 from worksearcher.outreach.email_extractor import extract_email
+from worksearcher.outreach.pipeline import run_outreach_pipeline
+from worksearcher.storage.database import init_db
 
 
 def _overpass_response(elements: list[dict]) -> dict:
@@ -225,3 +229,213 @@ async def test_extract_email_skips_failed_path_and_continues(fake_settings):
     result = await extract_email(_company(), fake_settings)
     assert result.email == "rh@acme.mx"
     assert result.email_is_hr_context is True
+
+
+# --- run_outreach_pipeline ---
+
+
+def _lead(n: int, email: str | None = "rh@acme.mx") -> Company:
+    return Company(
+        name=f"Company {n}",
+        website=f"https://company{n}.mx",
+        latitude=20.1,
+        longitude=-100.8,
+        email=email,
+        status="pending" if email else "no_email_found",
+    )
+
+
+def _make_fake_discover(companies: list[Company]):
+    async def discover(config) -> list[Company]:
+        return companies
+
+    return discover
+
+
+def _make_fake_extract(overrides: dict | None = None):
+    """Identity extractor by default; `overrides` maps company name -> Company to return."""
+
+    async def extract(company: Company, config) -> Company:
+        if overrides and company.name in overrides:
+            return overrides[company.name]
+        return company
+
+    return extract
+
+
+@pytest.mark.asyncio
+async def test_outreach_pipeline_saves_and_notifies_new_companies(
+    tmp_path, monkeypatch, fake_settings
+):
+    db_path = tmp_path / "test.db"
+    conn = sqlite3.connect(db_path)
+    init_db(conn)
+    conn.close()
+
+    companies = [_lead(1), _lead(2)]
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.discover_companies", _make_fake_discover(companies)
+    )
+    monkeypatch.setattr("worksearcher.outreach.pipeline.extract_email", _make_fake_extract())
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.get_connection", lambda path: sqlite3.connect(db_path)
+    )
+
+    notified = []
+
+    async def fake_send_outreach_digest(companies, config):
+        notified.extend(companies)
+        return True
+
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.send_outreach_digest", fake_send_outreach_digest
+    )
+
+    await run_outreach_pipeline(fake_settings)
+
+    conn = sqlite3.connect(db_path)
+    count = conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+    conn.close()
+
+    assert count == 2
+    assert len(notified) == 2
+
+
+@pytest.mark.asyncio
+async def test_outreach_pipeline_saves_but_does_not_notify_no_email_found(
+    tmp_path, monkeypatch, fake_settings
+):
+    db_path = tmp_path / "test.db"
+    conn = sqlite3.connect(db_path)
+    init_db(conn)
+    conn.close()
+
+    companies = [_lead(1, email=None)]
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.discover_companies", _make_fake_discover(companies)
+    )
+    monkeypatch.setattr("worksearcher.outreach.pipeline.extract_email", _make_fake_extract())
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.get_connection", lambda path: sqlite3.connect(db_path)
+    )
+
+    notified = []
+
+    async def fake_send_outreach_digest(companies, config):
+        notified.extend(companies)
+        return True
+
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.send_outreach_digest", fake_send_outreach_digest
+    )
+
+    await run_outreach_pipeline(fake_settings)
+
+    conn = sqlite3.connect(db_path)
+    count = conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+    conn.close()
+
+    assert count == 1
+    assert notified == []
+
+
+@pytest.mark.asyncio
+async def test_outreach_pipeline_dedupes_same_company_within_batch(
+    tmp_path, monkeypatch, fake_settings
+):
+    db_path = tmp_path / "test.db"
+    conn = sqlite3.connect(db_path)
+    init_db(conn)
+    conn.close()
+
+    # Two Overpass elements (e.g. a node and a way) can represent the same
+    # business. Both are unseen when discovered, so INSERT OR IGNORE alone
+    # would only dedupe on persistence — it wouldn't stop the WhatsApp digest
+    # from listing the same company twice in the SAME message. Assert on the
+    # notified list, not just the DB row count, or this test can't tell the
+    # difference between the pipeline's own dedup and the DB's PRIMARY KEY
+    # silently collapsing rows underneath it.
+    same_a = _lead(1)
+    same_b = _lead(1)  # identical fingerprint (same name + website)
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.discover_companies",
+        _make_fake_discover([same_a, same_b]),
+    )
+    monkeypatch.setattr("worksearcher.outreach.pipeline.extract_email", _make_fake_extract())
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.get_connection", lambda path: sqlite3.connect(db_path)
+    )
+
+    notified = []
+
+    async def fake_send_outreach_digest(companies, config):
+        notified.extend(companies)
+        return True
+
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.send_outreach_digest", fake_send_outreach_digest
+    )
+
+    await run_outreach_pipeline(fake_settings)
+
+    conn = sqlite3.connect(db_path)
+    count = conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+    conn.close()
+
+    assert count == 1
+    assert len(notified) == 1
+
+
+@pytest.mark.asyncio
+async def test_outreach_pipeline_marks_only_sent_companies_notified(
+    tmp_path, monkeypatch, fake_settings
+):
+    db_path = tmp_path / "test.db"
+    conn = sqlite3.connect(db_path)
+    init_db(conn)
+    conn.close()
+
+    overflow = fake_settings.OUTREACH_MAX_COMPANIES_PER_MESSAGE + 5
+    companies = [_lead(i) for i in range(overflow)]
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.discover_companies", _make_fake_discover(companies)
+    )
+    monkeypatch.setattr("worksearcher.outreach.pipeline.extract_email", _make_fake_extract())
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.get_connection", lambda path: sqlite3.connect(db_path)
+    )
+
+    async def fake_send_outreach_digest(companies, config):
+        return True
+
+    monkeypatch.setattr(
+        "worksearcher.outreach.pipeline.send_outreach_digest", fake_send_outreach_digest
+    )
+
+    await run_outreach_pipeline(fake_settings)
+
+    conn = sqlite3.connect(db_path)
+    notified_count = conn.execute("SELECT COUNT(*) FROM companies WHERE notified=1").fetchone()[0]
+    unnotified_count = conn.execute("SELECT COUNT(*) FROM companies WHERE notified=0").fetchone()[0]
+    conn.close()
+
+    assert notified_count == fake_settings.OUTREACH_MAX_COMPANIES_PER_MESSAGE
+    assert unnotified_count == 5
+
+
+@pytest.mark.asyncio
+async def test_outreach_pipeline_skips_when_coordinates_not_configured(monkeypatch, fake_settings):
+    fake_settings.OUTREACH_LAT = None
+
+    called = False
+
+    async def discover(config):
+        nonlocal called
+        called = True
+        return []
+
+    monkeypatch.setattr("worksearcher.outreach.pipeline.discover_companies", discover)
+
+    await run_outreach_pipeline(fake_settings)
+
+    assert called is False
