@@ -53,6 +53,7 @@ class FakeSettings:
     OUTREACH_RADIUS_KM = 80
     OUTREACH_MAX_COMPANIES_PER_RUN = 100
     OUTREACH_MAX_COMPANIES_PER_MESSAGE = 30
+    OUTREACH_OVERPASS_URL = "https://overpass-api.de/api/interpreter"
     outreach_contact_paths_list = [
         "/contacto",
         "/trabaja-con-nosotros",

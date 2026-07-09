@@ -131,6 +131,26 @@ key vía suscripción — plan más barato $295/mes. Inviable para este proyecto
 costo cero (ADR-003). El scraping de la página pública HTML es gratuito y no
 requiere autenticación.
 
+### Overpass API (`overpass-api.de`) responde `406 Not Acceptable` intermitentemente
+**Archivo:** `worksearcher/outreach/discovery.py`
+Detectado en el primer smoke test en producción (radio 80km). No es un bug de
+nuestro request: reproducido localmente contra el endpoint real, mismo 406 sin
+importar headers (`Accept`, `Accept-Encoding`, `User-Agent` de browser real) ni
+método (GET/POST) ni encoding del body. Confirmado vía búsqueda que es un
+problema del lado del servidor que afecta a toda la comunidad de Overpass en
+estos días (issue reportado en GitHub del proyecto y foros de OSM), no algo
+específico de este cliente.
+
+**Fix:** `OUTREACH_OVERPASS_URL` es ahora un campo de `Settings` (antes era una
+constante hardcodeada `OVERPASS_API` en `discovery.py`). Si `overpass-api.de`
+vuelve a fallar, cambiar a un mirror en `.env` sin tocar código:
+```
+OUTREACH_OVERPASS_URL=https://overpass.kumi.systems/api/interpreter
+```
+**Sin fix de código para el 406 en sí** — es un problema de infraestructura de
+terceros fuera de nuestro control; solo se mitigó la rigidez de apuntar a un
+único endpoint fijo.
+
 ---
 
 ## Deuda técnica pendiente

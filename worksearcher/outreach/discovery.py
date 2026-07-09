@@ -7,8 +7,6 @@ from worksearcher.core.models import Company
 
 logger = logging.getLogger(__name__)
 
-OVERPASS_API = "https://overpass-api.de/api/interpreter"
-
 
 def _build_query(lat: float, lon: float, radius_km: int, limit: int) -> str:
     radius_m = radius_km * 1000
@@ -34,7 +32,7 @@ async def discover_companies(config: Settings) -> list[Company]:
 
     try:
         async with httpx.AsyncClient(timeout=config.HTTP_TIMEOUT_SECONDS) as client:
-            response = await client.post(OVERPASS_API, data={"data": query})
+            response = await client.post(config.OUTREACH_OVERPASS_URL, data={"data": query})
             response.raise_for_status()
             payload = response.json()
 
