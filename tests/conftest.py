@@ -48,10 +48,24 @@ class FakeSettings:
     SEARCH_LOCAL_ENABLED = False
     MX_SEARCH_CITY = ""
     MX_SEARCH_STATE = ""
+    OUTREACH_LAT = 20.1
+    OUTREACH_LON = -100.8
+    OUTREACH_RADIUS_KM = 80
+    OUTREACH_MAX_COMPANIES_PER_RUN = 100
+    OUTREACH_MAX_COMPANIES_PER_MESSAGE = 30
+    outreach_contact_paths_list = [
+        "/contacto",
+        "/trabaja-con-nosotros",
+        "/bolsa-de-trabajo",
+        "/careers",
+        "/rh",
+    ]
 
     @property
     def local_location(self) -> str:
-        parts = [p.strip().title() for p in (self.MX_SEARCH_CITY, self.MX_SEARCH_STATE) if p.strip()]
+        parts = [
+            p.strip().title() for p in (self.MX_SEARCH_CITY, self.MX_SEARCH_STATE) if p.strip()
+        ]
         return ", ".join(parts) if parts else ""
 
 
