@@ -29,6 +29,23 @@ Interfaz: `async def scrape(config: Settings) -> list[Job]`.
 La función `_run_pipeline` en `main.py`. Orquesta scrapers → filtros → dedup → BD → WhatsApp.
 Se ejecuta completa cada vez que cron dispara `python -m worksearcher run`.
 
+**Company**
+Empresa descubierta por el pipeline de outreach (`worksearcher/outreach/`). Modelo Pydantic
+separado de `Job` — no es una vacante. Campos: `name`, `website`, `email`,
+`email_is_hr_context`, `status`, `fingerprint`. Persistida en tabla `companies`
+sin expiración (a diferencia de `jobs`).
+
+**outreach**
+Pipeline separado del buscador de vacantes (`worksearcher outreach`, cadencia semanal).
+Descubre empresas por coordenadas (Overpass API) y extrae correo de RH — el envío es
+manual, fuera de la app (ADR-007, ver `decisiones.md`). No comparte ciclo con `run`.
+
+**email_is_hr_context**
+Bool en `Company`. `True` si el correo extraído estaba cerca de contexto textual de RH
+("recursos humanos", "bolsa de trabajo", etc.); `False` si fue un fallback genérico
+(primer `mailto:` encontrado sin contexto). Mostrado en el digest WhatsApp como
+"✅ RH confirmado" / "⚠️ contacto general".
+
 ---
 
 ## Conceptos técnicos internos

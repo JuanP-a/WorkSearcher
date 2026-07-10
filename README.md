@@ -1,6 +1,6 @@
 # WorkSearcher
 
-Buscador de trabajo automatizado. Scraping de 10 plataformas activas (1 opt-in), filtrado por keywords + fecha + blacklist + idioma + salario, notificación vía WhatsApp.
+Buscador de trabajo automatizado. Scraping de 12 plataformas activas (1 opt-in, 13 en total), filtrado por keywords + fecha + blacklist + idioma + salario, notificación vía WhatsApp. Incluye pipeline separado de outreach en frío (extracción de correo de RH por coordenadas, envío manual).
 
 ## Setup local
 
@@ -13,6 +13,9 @@ uv pip install -r requirements.txt          # deps sin hashes — solo para desa
 uv run playwright install chromium
 
 uv run python -m worksearcher run
+
+# Outreach en frío (pipeline separado, cadencia semanal — ver ADR-007)
+uv run python -m worksearcher outreach
 ```
 
 ## Deploy en VPS (Ubuntu 22.04)
@@ -50,7 +53,7 @@ Ver `.env.example` para la referencia completa con comentarios.
 
 | Variable | Default | Descripción |
 |----------|---------|-------------|
-| `ENABLED_SCRAPERS` | todos (9) | Lista separada por comas de scrapers activos |
+| `ENABLED_SCRAPERS` | todos menos `occ` | Lista separada por comas de scrapers activos |
 
 ### jobspy (LinkedIn / Indeed / Glassdoor)
 
@@ -93,6 +96,19 @@ Ver `.env.example` para la referencia completa con comentarios.
 | Variable | Default | Descripción |
 |----------|---------|-------------|
 | `DB_PATH` | `worksearcher.db` | Path a la BD SQLite; en VPS usar `/var/lib/worksearcher/worksearcher.db` |
+
+### Outreach en frío (pipeline separado — ver ADR-007)
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `OUTREACH_LAT` / `OUTREACH_LON` | — | Coordenadas del centro de búsqueda (negativo en LON para hemisferio oeste) |
+| `OUTREACH_RADIUS_KM` | `80` | Radio de búsqueda alrededor de las coordenadas |
+| `OUTREACH_CONTACT_PATHS` | `/contacto,/trabaja-con-nosotros,/bolsa-de-trabajo,/careers,/rh` | Rutas de contacto a crawlear por empresa |
+| `OUTREACH_MAX_COMPANIES_PER_RUN` | `100` | Tope de empresas descubiertas por corrida |
+| `OUTREACH_MAX_COMPANIES_PER_MESSAGE` | `30` | Tope de empresas por mensaje WhatsApp |
+| `OUTREACH_OVERPASS_URL` | `https://maps.mail.ru/osm/tools/overpass/api/interpreter` | Endpoint Overpass API (configurable — ver `docs/contexto/errores-conocidos.md`, bug 406 de overpass-api.de) |
+
+`worksearcher outreach` solo extrae — el envío de correo es manual, fuera de la app (ADR-007, `docs/contexto/decisiones.md`).
 
 ## Docs
 

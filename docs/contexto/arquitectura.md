@@ -43,12 +43,16 @@ worksearcher/
     deduplicator.py         deduplicate(jobs, seen) → list[Job]
     utils.py                slugify()
   storage/
-    database.py             SQLite CRUD (init, save, dedup query, notified)
+    database.py             SQLite CRUD (init, save, dedup query, notified) + tabla companies
   notifier/
-    whatsapp.py             send_digest() → bool
+    whatsapp.py             send_digest() → bool · send_outreach_digest() → bool
+  outreach/           ← pipeline SEPARADO — no busca empleo, extrae correo de RH (ver ADR-007)
+    discovery.py            Overpass API (OSM), tag `website` como proxy de tamaño
+    email_extractor.py      httpx + BS4, heurística de contexto RH, respeta robots.txt
+    pipeline.py              run_outreach_pipeline() — orquesta discovery → extracción → dedup → save → notify
   config.py           ← Settings (pydantic-settings, lee .env)
-  main.py             ← _run_pipeline() + CLI click
-  __main__.py         ← permite `python -m worksearcher run`
+  main.py             ← _run_pipeline() + run_outreach_pipeline() + CLI click (`run` / `outreach`)
+  __main__.py         ← permite `python -m worksearcher run` / `outreach`
 
 specs/                ← una spec SDD por feature (antes de implementar)
 docs/
@@ -93,6 +97,34 @@ jobs guardados con `notified=0` y los reenvía antes de procesar el scrape nuevo
 
 ---
 
+## Pipeline de outreach (separado, semanal)
+
+```
+cron (semanal) o `worksearcher outreach`
+    └─▶ run_outreach_pipeline(config)
+            │
+            ├─▶ discover_companies(lat, lon, radius_km)   → Overpass API (OSM)
+            │       └─ nodos/ways con tag `website` en el radio configurado
+            │
+            ├─▶ extract_email(company) por cada empresa nueva
+            │       ├─ respeta robots.txt (urllib.robotparser)
+            │       ├─ crawlea home + OUTREACH_CONTACT_PATHS
+            │       └─ heurística de contexto RH → email_is_hr_context: bool
+            │
+            ├─▶ dedup por fingerprint (sha256(name+website)) contra companies ya vistas
+            │
+            ├─▶ save_companies(new_companies, conn)   → SQLite, sin expiración
+            │
+            └─▶ send_outreach_digest(new_companies, config)   → WhatsApp
+                    └─ etiqueta "✅ RH confirmado" / "⚠️ contacto general" por empresa
+```
+
+No comparte ciclo con `_run_pipeline` (vacantes) — cron separado, sin filtro de
+relevancia por contenido (probado y revertido, ver `errores-conocidos.md`).
+El sistema solo extrae; el envío de correo es manual (ADR-007).
+
+---
+
 ## Modelo de datos principal
 
 ```python
@@ -111,6 +143,20 @@ class Job(BaseModel):
 
 SQLite guarda también: `created_at` (CURRENT_TIMESTAMP) y `notified` (0/1).
 `min_salary_usd_monthly` **no se persiste** en la BD — solo se usa en el filtro en memoria.
+
+```python
+class Company(BaseModel):
+    name: str
+    website: str
+    email: str | None = None
+    email_is_hr_context: bool = False   # True = heurística RH confirmó contexto; False = fallback genérico
+    status: str = "ok"                  # "no_email_found" si el crawl no encontró correo
+    fingerprint: str  # computed: sha256(name + website) — dedup key
+```
+
+Tabla `companies` en SQLite: **sin expiración** (a diferencia de `jobs`) — un lead
+de negocio local no vence. Solo trackea `notified`, no `contacted`/respuestas
+(eso lo lleva el usuario fuera de la app, ADR-007).
 
 ---
 

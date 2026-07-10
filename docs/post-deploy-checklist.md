@@ -50,46 +50,27 @@ No es crítico para el job search. Lo reactivamos cuando esté bien configurado.
 
 ## PRIORIDAD 2 · Esta semana (10 min)
 
-### 2A · Fix `harden.sh` en el repo
+### 2A · Fix `harden.sh` en el repo ✅ Resuelto
 
-**Bug 1 — drop-in prefix:**
-
-Cambiar `deploy/harden.sh` para que copie a `00-worksearcher.conf` en lugar de `worksearcher.conf`. Sin el prefijo `00-`, el drop-in carga después de `50-cloud-init.conf` y "first wins" en sshd hace que se pierda nuestro `PasswordAuthentication no`.
-
-**Bug 2 — deploy user:**
-
-Agregar al script, ANTES de aplicar las reglas SSH:
-
-```bash
-useradd -m -s /bin/bash deploy
-mkdir -p /home/deploy/.ssh
-cp /root/.ssh/authorized_keys /home/deploy/.ssh/
-chown -R deploy:deploy /home/deploy/.ssh
-chmod 700 /home/deploy/.ssh
-chmod 600 /home/deploy/.ssh/authorized_keys
-echo "deploy ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/deploy
-chmod 440 /etc/sudoers.d/deploy
-```
-
-Sin este paso, `PermitRootLogin no` = lockout total si perdés la key.
-
-### 2B · Commit atómico + PR
-
-Tres commits:
-
-1. `fix: harden.sh uses 00- prefix for sshd drop-in (first-wins workaround)`
-2. `fix: harden.sh creates deploy user before disabling root login`
-3. `docs: ADR-006 addendum — fail2ban self-ban recovery via Vultr web console`
+Ambos bugs ya corregidos en `deploy/harden.sh`: drop-in instala como
+`00-worksearcher.conf` (carga antes que `50-cloud-init.conf`), y el script crea
+el usuario `deploy` con sudo NOPASSWD + `authorized_keys` copiada ANTES de
+aplicar `PermitRootLogin no`. Ver ADR-006 addendum en `docs/contexto/decisiones.md`.
 
 ---
 
 ## PRIORIDAD 3 · Cuando puedas (1-2 días)
 
-### 3A · jobspy local
+### 3A · jobspy local ✅ Resuelto
 
-Bug: `Invalid country string: 'sri lanka'` / `'cameroon'`. El local pass pasa `location="Celaya, Guanajuato"` con `is_remote=False`, jobspy intenta parsear como país y falla.
+Bug: `Invalid country string: 'sri lanka'` / `'cameroon'`. El local pass pasaba
+`location="Celaya, Guanajuato"` con `is_remote=False`, jobspy intentaba
+parsear como país y fallaba de forma no-determinista.
 
-**Fix:** agregar `country="mexico"` explícito en `worksearcher/scrapers/jobspy_scraper.py`, local pass.
+**Fix aplicado:** `worksearcher/scrapers/jobspy_scraper.py` pasa
+`country="mexico"` explícito en el local pass. Cubierto por
+`test_jobspy_local_pass_passes_country_mexico`. Ver ADR-006 addendum v2 (Bug F)
+en `docs/contexto/decisiones.md`.
 
 ### 3B · OCC (occ.com.mx)
 
